@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="./style.css">
   <script defer src="https://unpkg.com/blockly@11.2.2/blockly.min.js"></script>
   <script defer src="./app.js"></script>
+  <script defer src="./editor.js"></script>
 </head>
 <body>
   <header class="topbar">
@@ -20,10 +21,30 @@
       <div class="mode"><label for="mode">Play mode</label><select id="mode"><option value="simulation">Simulation</option><option value="hardware">micro:bit Bluetooth (experimental)</option></select><button id="connect" class="secondary" type="button">+ Connect micro:bit</button><span id="devices">0 micro:bits connected</span></div>
     </section>
     <section class="workspace-panel">
-      <div class="section-head"><div><h2>My game</h2><p>Choose Reaction game or Memory game, then remix with variables, lists, math, conditions, loops, and colored pods.</p></div>
+      <div class="section-head"><div><h2>My game</h2><p id="workspace-description">Choose Reaction game or Memory game, then remix with variables, lists, math, conditions, loops, and colored pods.</p></div>
         <div class="toolbar"><button type="button" id="example">Load example</button><button type="button" id="save" class="secondary">Save game</button><button type="button" id="load" class="secondary">Load game</button><input type="file" id="file" accept=".json,application/json" hidden></div>
       </div>
+      <div class="editor-tabs" role="tablist" aria-label="Programming editor">
+        <button id="blocks-tab" class="chosen" role="tab" aria-selected="true" type="button">Blocks</button>
+        <button id="javascript-tab" role="tab" aria-selected="false" type="button">JavaScript</button>
+      </div>
       <div id="blockly" aria-label="Blockly programming workspace"></div>
+      <section id="js-editor-panel" class="js-editor-panel" hidden>
+        <div class="js-editor-toolbar">
+          <span>JavaScript game editor</span>
+          <div class="toolbar">
+            <button type="button" id="js-example-reaction">Reaction example</button>
+            <button type="button" id="js-example-memory">Memory example</button>
+            <button type="button" id="js-save" class="secondary">Save .js</button>
+            <button type="button" id="js-load" class="secondary">Load .js</button>
+            <input type="file" id="js-file" accept=".js,text/javascript,text/plain" hidden>
+          </div>
+        </div>
+        <label for="js-code" class="editor-label">Write your game's JavaScript</label>
+        <textarea id="js-code" spellcheck="false" autocomplete="off" autocapitalize="off" aria-label="JavaScript code editor"></textarea>
+        <p class="hint">Commands: <code>await pods.light(1, 'blue')</code>, <code>await pods.off()</code>, <code>await pods.wait(500)</code>, <code>await pods.waitPress(3000)</code>, <code>await pods.addScore(10)</code>, <code>await pods.nextRound()</code>, <code>await pods.randomPod()</code>, <code>await pods.message('Hello')</code>. Use <code>for</code>, <code>if</code>, arrays and variables to build games. JavaScript mode is separate from Blocks mode.</p>
+        <p class="hint">Security: programs run inside a sandboxed frame with only the limited FreezePods command interface. This is an early educational sandbox, not a hardened environment for running untrusted third-party code.</p>
+      </section>
     </section>
     <section class="play-panel">
       <div class="section-head"><div><h2>Play & test</h2><p id="status" role="status" aria-live="polite">Ready. Press Play to start.</p></div><div class="toolbar"><button id="play" class="primary" type="button">▶ Play game</button><button id="stop" class="secondary" type="button" disabled>■ Stop</button></div></div>
