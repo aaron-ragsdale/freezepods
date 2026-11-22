@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#111827">
+  <title>FreezePods | Build a Game</title>
+  <link rel="stylesheet" href="./style.css">
+  <script defer src="https://unpkg.com/blockly@11.2.2/blockly.min.js"></script>
+  <script defer src="./app.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="logo">✳</span><div><strong>FreezePods</strong><small>Make a game. Make it move.</small></div></div>
+    <span class="tag">Blockly game builder · beta</span>
+  </header>
+  <main>
+    <section class="intro">
+      <div><p class="eyebrow">BUILD · TEST · REMIX</p><h1>Make your own reaction game.</h1><p>Snap blocks together, press Play, and test with four virtual pods. Optionally connect BBC micro:bits with Bluetooth.</p></div>
+      <div class="mode"><label for="mode">Play mode</label><select id="mode"><option value="simulation">Simulation</option><option value="hardware">micro:bit Bluetooth (experimental)</option></select><button id="connect" class="secondary" type="button">+ Connect micro:bit</button><span id="devices">0 micro:bits connected</span></div>
+    </section>
+    <section class="workspace-panel">
+      <div class="section-head"><div><h2>My game</h2><p>Use blocks to control the pods, timing, and scoring.</p></div>
+        <div class="toolbar"><button type="button" id="example">Load example</button><button type="button" id="save" class="secondary">Save game</button><button type="button" id="load" class="secondary">Load game</button><input type="file" id="file" accept=".json,application/json" hidden></div>
+      </div>
+      <div id="blockly" aria-label="Blockly programming workspace"></div>
+    </section>
+    <section class="play-panel">
+      <div class="section-head"><div><h2>Play & test</h2><p id="status" role="status" aria-live="polite">Ready. Press Play to start.</p></div><div class="toolbar"><button id="play" class="primary" type="button">▶ Play game</button><button id="stop" class="secondary" type="button" disabled>■ Stop</button></div></div>
+      <div class="stats"><div>Score <strong id="score">0</strong></div><div>Round <strong id="round">0</strong></div><div>Last reaction <strong id="reaction">—</strong></div><div>Correct hits <strong id="hits">0</strong></div></div>
+      <div class="pods" id="pods">
+        <button type="button" class="pod" data-pod="0"><span class="led" aria-hidden="true"></span><strong>Pod 1</strong><small>Click to press</small></button>
+        <button type="button" class="pod" data-pod="1"><span class="led" aria-hidden="true"></span><strong>Pod 2</strong><small>Click to press</small></button>
+        <button type="button" class="pod" data-pod="2"><span class="led" aria-hidden="true"></span><strong>Pod 3</strong><small>Click to press</small></button>
+        <button type="button" class="pod" data-pod="3"><span class="led" aria-hidden="true"></span><strong>Pod 4</strong><small>Click to press</small></button>
+      </div>
+      <p class="hint">Simulation: click a pod or press keys 1–4. Bluetooth: connect up to four BBC micro:bits, choose hardware mode, and use button A or B. Requires compatible browser and micro:bit BLE firmware with Button + LED services.</p>
+      <details><summary>See game events</summary><ol id="log" aria-live="polite"></ol></details>
+    </section>
+  </main>
+  <footer>FreezePods · Static, browser-based learning prototype · <a href="https://developers.google.com/blockly">Powered by Blockly</a></footer>
+</body>
+</html>
