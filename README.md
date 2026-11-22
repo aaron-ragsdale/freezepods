@@ -1,76 +1,65 @@
-# FreezePods Game Builder
+# FreezePods Blockly Game Lab (v2)
 
-A static, browser-based Blockly game builder for four reaction pods. Students remix games with visual blocks, test on simulated pods, and optionally experiment with BBC micro:bit Bluetooth devices.
+A free, static GitHub Pages website for students to invent physical reaction and memory games with Google Blockly. No React build, npm install, server, firmware compiler, or account is needed for **simulation**.
 
-**This is a new prototype rather than a fixed copy of nicoletart/freezepods.** No React, Node.js, or build step is required.
+## Features
 
-## What works
+- **Starter games:** Reaction Game and Memory Game buttons at the top of the Blockly workspace.
+- **Programming concepts:** variables, basic math, comparisons, Boolean logic, if/else, repeat and while/until loops.
+- **Lists & memory:** create lists, read list items, generate random sequences, show them on pods, and check players' presses.
+- **Pod controls:** random or specific target, change pod color, clear pods.
+- **Inputs:** wait for a press with timeout; check most recent button and whether it was correct.
+- **Scoring:** assign points for correct/wrong presses or adjust score directly.
+- **Test:** four virtual pods, clickable or controlled by number keys 1–4.
+- **Sharing:** download and reload your Blockly workspace as a JSON project.
 
-- Drag-and-drop Blockly editor
-- One game-start sequence, repeat-rounds blocks, random or numbered target selection
-- Wait for button, assign points for correct / wrong / timed-out responses
-- Clear displays and wait between targets
-- Four clickable simulated pods; keyboard shortcuts 1, 2, 3, 4
-- Score, hit count, round count and browser-received reaction times
-- Save/load Blockly games as JSON
-- Experimental Web Bluetooth: connect up to four BBC micro:bits with the required Bluetooth Button and LED services
+Note: this release supports a *defined subset* of Blockly blocks. It does not run arbitrary generated JavaScript and does not yet support Blockly functions/procedures, nested custom event handlers, or every built-in list/math block. Unsupported blocks stop the game with an explanatory error. Long-running loops are bounded.
 
-**Important:** Physical Bluetooth connectivity and LED matrix writes have not been verified on real devices. Some micro:bit firmware versions do not expose the required services. The browser measures reaction time, so Bluetooth latency is included. Simulated pods are the reliable starting point. This version does not compile or flash micro:bit firmware.
+## Play online with GitHub Pages
 
-## Repo files
+Open **Settings → Pages** in this GitHub repository, choose **Deploy from a branch**, set **main** / **/(root)**, and save. The resulting public URL is generally `https://aaron-ragsdale.github.io/freezepods/`.
 
-- `index.html` — website markup and Blockly CDN
-- `style.css` — layout and responsive styling
-- `app.js` — blocks, safe interpreter, simulation, save/load and experimental Bluetooth
-- `README.md` — project documentation
-
-## Enable GitHub Pages
-
-1. Open repository **Settings → Pages**.
-2. Under **Build and deployment**, choose **Deploy from a branch**.
-3. Select `main` and `/(root)`, then **Save**.
-4. The website will normally appear at `https://<your-username>.github.io/freezepods/`.
-
-If the repository is **private**, GitHub Pages availability may depend on the account plan. If Pages is not available, make the repository public when you're comfortable sharing the code, or use a supported Pages plan. Pages hosts static files; no server is required.
-
-The site pulls Blockly 11.2.2 from unpkg.com; students require internet access to load Blockly.
+No GitHub Actions or build step is required. Blockly is loaded from the public CDN and requires internet access.
 
 ## Student quick start
 
-1. Open the GitHub Pages site in desktop Chrome or Edge.
-2. Leave **Simulation** selected.
-3. Press **Play game**.
-4. Click any active green pod, or press its number key (1–4).
-5. Click **Stop** to end early.
-6. Change the blocks, then Play again.
-7. **Save game** downloads a JSON file; **Load game** imports it later.
+1. Open the site in Chrome or Edge. Select **Simulation**.
+2. Press **Reaction game** or **Memory game** to load a starting Blockly project.
+3. Press **Play game** and click the pods (or use keyboard numbers 1–4).
+4. Change settings or add blocks. To make a variable, open **Variables → Create variable**.
+5. Press Play again. To share your program, use **Save game**; use **Load game** to reopen the JSON.
 
-The default game runs eight rounds. A correct press gives 10 points, while a wrong press or timeout gives -5 points. The timeout defaults to three seconds. Students can change those rules in Blockly.
+### Reaction game
 
-## Experimental Bluetooth use
+The example uses eight rounds with a random illuminated pod, a three-second button timeout, and +10 or -5 points. Adjust blocks for new rules. Reaction times are measured by the browser, not a sensor hardware clock.
 
-Use desktop Chrome/Edge over HTTPS with a BBC micro:bit already flashed with firmware exposing:
-- BLE Button Service (A/B state notifications)
-- BLE LED Service (matrix state writable characteristic)
+### Memory game
 
-Choose **micro:bit Bluetooth (experimental)** and press **Connect micro:bit** four times to pair four different devices, then press Play. A BLE device chooser appears for each device.
+The example repeats five rounds. Each round generates a list of three pod numbers and flashes them blue in order. The student repeats the sequence by clicking the matching pods. Correct sequences earn +20; incorrect responses or timeouts score -5. Change the sequence-length math block to make it easier/harder; variables are used to store the sequence.
 
-The hardware path is not yet tested with four physical micro:bits. A connection can fail if services are disabled, firmware is incompatible, or the browser lacks BLE permission. The app does not upload MakeCode projects or Arduino sketches.
+### Color control
 
-## Architecture
+Use **Pods & Colors → set pod [number] color to [color]**. Insert a Math number block into the pod input. This can control all four simulated pods. Standard micro:bit LED matrices do not produce red/green/blue light. In experimental Bluetooth mode, the browser sends monochrome on/off LED matrix patterns regardless of chosen simulated color.
 
-Blockly workspace → validated block interpreter → game actions → simulated pods or BLE device characteristics.
+## Files
 
-No `eval` or execution of student-generated arbitrary JavaScript is used. The interpreter supports only the defined game blocks, with bounded repeats and step counts. The browser receives events and calculates scores.
+| File | Role |
+|---|---|
+| `index.html` | Layout and Google Blockly loading |
+| `style.css` | Responsive visual styles |
+| `app.js` | Custom Blockly blocks, safe interpreter, templates, simulation, experimental BLE |
+| `README.md` | This guide |
 
-## Roadmap
+## Bluetooth hardware (experimental, not validated)
 
-- Real micro:bit firmware testing and reconnect/disconnect UI
-- Configurable countdown, reaction-time scoring, target colors and multiple game templates
-- Classroom-ready save, share and instructions
-- Hardware-level button timestamps for more accurate measurements
-- ESP32 reaction pods via a separate adapter (current ESP32 firmware uses Wi-Fi, not these micro:bit BLE services)
+The site supports Web Bluetooth in compatible desktop Chrome/Edge browsers over HTTPS. To connect four BBC micro:bits, each must already have suitable firmware exposing Bluetooth Button and LED GATT services. Press **Connect micro:bit** once per device, and select Hardware mode before starting.
 
-## Credits
+**Not yet verified on real micro:bits.** BLE timing, reconnection, correct firmware configuration, and other hardware limitations still require testing. The site does not install firmware onto devices. For accurate reactions, a future hardware adapter should timestamp presses locally.
 
-Inspired by the [original FreezePods repository](https://github.com/nicoletart/freezepods). Powered by [Google Blockly](https://developers.google.com/blockly).
+## Safety and limitations
+
+Student blocks are interpreted through a whitelist of supported instructions: **no eval or arbitrary compiled JavaScript**. Loops and execution time are capped. Variables reset at each Play. Imported games are Blockly JSON; only supported blocks execute. The app does not store personal data on a server.
+
+## Attribution
+
+Inspired by [nicoletart/freezepods](https://github.com/nicoletart/freezepods), and built with [Google Blockly](https://developers.google.com/blockly).
