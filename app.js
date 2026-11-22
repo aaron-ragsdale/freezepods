@@ -1,153 +1,183 @@
-/* FreezePods: static Blockly game builder. No eval or arbitrary JS execution. */
+/* FreezePods v2: visual game builder, safe block interpreter, simulation + experimental micro:bit BLE */
 (() => {
-  'use strict';
-  const $ = id => document.getElementById(id);
-  const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
-  const state = {running:false, token:0, score:0, round:0, hits:0, target:-1, targetAt:0, last:null, pending:null, devices:[], mode:'simulation'};
-  const uuid = {
-    buttonService:'e95d9882-251d-470a-a062-fa1922dfa9a8',
-    buttonA:'e95dda90-251d-470a-a062-fa1922dfa9a8',
-    buttonB:'e95dda91-251d-470a-a062-fa1922dfa9a8',
-    ledService:'e95dd91d-251d-470a-a062-fa1922dfa9a8',
-    matrix:'e95d7b77-251d-470a-a062-fa1922dfa9a8'
-  };
-  const ledOff = new Uint8Array(5);
-  const ledOn = new Uint8Array([14,31,31,31,14]);
-  const podButtons = [...document.querySelectorAll('.pod')];
-  let workspace;
-  function status(s){$('status').textContent=s;}
-  function log(s){const li=document.createElement('li');li.textContent=s;$('log').prepend(li);while($('log').children.length>45)$('log').lastChild.remove();}
-  function stats(){ $('score').textContent=state.score; $('round').textContent=state.round; $('hits').textContent=state.hits; $('reaction').textContent=state.last&&state.last.ms!==null?Math.round(state.last.ms)+' ms':'—';}
-  function paintPod(index,on){
-    podButtons[index]?.classList.toggle('active',on);
-    const dev=state.devices[index];
-    if(state.mode==='hardware'&&dev&&dev.matrix){
-      dev.matrix.writeValue(on?ledOn:ledOff).catch(err=>log('LED write failed: '+err.message));
-    }
+'use strict';
+const $ = id => document.getElementById(id);
+const wait = ms => new Promise(r => setTimeout(r, ms));
+const S={playing:false,run:0,score:0,round:0,hits:0,last:null,target:-1,devices:[],colors:['off','off','off','off'],mode:'simulation',pending:null,vars:new Map()};
+const COLORS={red:'#ef5961',green:'#39d27a',blue:'#4f8cf7',yellow:'#f5c344',purple:'#ad73ed',orange:'#fa943b',white:'#ffffff',off:'#d7e1eb'};
+const UUID={buttons:'e95d9882-251d-470a-a062-fa1922dfa9a8',a:'e95dda90-251d-470a-a062-fa1922dfa9a8',b:'e95dda91-251d-470a-a062-fa1922dfa9a8',leds:'e95dd91d-251d-470a-a062-fa1922dfa9a8',matrix:'e95d7b77-251d-470a-a062-fa1922dfa9a8'};
+const pods=[...document.querySelectorAll('.pod')];let ws;
+function status(s){$('status').textContent=s;}
+function log(s){let li=document.createElement('li');li.textContent=s;$('log').prepend(li);while($('log').children.length>60)$('log').lastChild.remove();}
+function stats(){$('score').textContent=S.score;$('round').textContent=S.round;$('hits').textContent=S.hits;$('reaction').textContent=S.last?.ms==null?'—':Math.round(S.last.ms)+' ms';}
+function on(token){return S.playing&&token===S.run;}
+function paint(i,color){
+  if(i<0||i>3)return;
+  color=COLORS[color]?color:'green';S.colors[i]=color;
+  const b=pods[i],led=b.querySelector('.led');b.classList.toggle('active',color!=='off');
+  b.style.borderColor=color==='off'?'':COLORS[color];b.style.backgroundColor=color==='off'?'':COLORS[color]+'22';
+  led.style.backgroundColor=COLORS[color];led.style.borderColor=color==='off'?'':'#ffffff88';
+  led.style.boxShadow=color==='off'?'':'0 0 24px '+COLORS[color]+'aa';
+  const m=S.devices[i]?.matrix;
+  if(S.mode==='hardware'&&m){const bytes=color==='off'?new Uint8Array(5):new Uint8Array([14,31,31,31,14]);m.writeValue(bytes).catch(e=>log('LED error: '+e.message));}
+}
+function clear(){for(let i=0;i<4;i++)paint(i,'off');S.target=-1;}
+function resolvePress(i){
+  if(!S.playing||!S.pending)return;
+  const fn=S.pending;S.pending=null;fn({index:i,ms:performance.now()-S.targetAt});
+}
+pods.forEach((b,i)=>b.addEventListener('click',()=>resolvePress(i)));
+document.addEventListener('keydown',e=>{if(e.repeat||/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)||e.target.closest('.blocklyWidgetDiv'))return;if('1234'.includes(e.key)&&e.key.length===1)resolvePress(Number(e.key)-1);});
+function updateConnections(){$('devices').textContent=S.devices.filter(d=>d?.device?.gatt?.connected).length+' micro:bits connected';}
+function switchMode(){S.mode=$('mode').value;$('connect').hidden=S.mode!=='hardware';$('connect').disabled=S.playing;}
+$('mode').addEventListener('change',switchMode);
+$('connect').addEventListener('click',async()=>{
+ if(!navigator.bluetooth){status('Web Bluetooth requires supported Chrome/Edge, Bluetooth and HTTPS.');return;}
+ if(S.devices.filter(d=>d?.device?.gatt?.connected).length>=4){status('Four devices already connected.');return;}
+ try{
+  const device=await navigator.bluetooth.requestDevice({filters:[{namePrefix:'BBC micro:bit'}],optionalServices:[UUID.buttons,UUID.leds]});
+  if(S.devices.some(d=>d?.device?.id===device.id)){status('Device already connected.');return;}
+  const server=await device.gatt.connect(), buttons=await server.getPrimaryService(UUID.buttons), leds=await server.getPrimaryService(UUID.leds), matrix=await leds.getCharacteristic(UUID.matrix);
+  const index=[0,1,2,3].find(i=>!S.devices[i]||!S.devices[i].device.gatt.connected);
+  if(index===undefined)return;
+  S.devices[index]={device,matrix};
+  for(const id of [UUID.a,UUID.b]){
+   const ch=await buttons.getCharacteristic(id);await ch.startNotifications();
+   ch.addEventListener('characteristicvaluechanged',e=>{if(e.target.value.getUint8(0)===1)resolvePress(index);});
   }
-  function clearPods(){for(let i=0;i<4;i++)paintPod(i,false);state.target=-1;}
-  function pressed(index){
-    if(!state.running||!state.pending)return;
-    const waiter=state.pending;state.pending=null;
-    waiter({index,ms:performance.now()-state.targetAt});
+  device.addEventListener('gattserverdisconnected',()=>{S.devices[index]=null;updateConnections();log('Pod '+(index+1)+' disconnected');if(S.playing){stop();status('A micro:bit disconnected; game stopped.');}});
+  updateConnections();status('Connected '+device.name+' as Pod '+(index+1));log('Connected '+device.name);
+ }catch(e){status('Bluetooth: '+e.message);}
+});
+if(!window.Blockly){status('Blockly failed to load. Please reload with an internet connection.');return;}
+Blockly.defineBlocksWithJsonArray([
+ {type:'game_start',message0:'when game starts %1 %2',args0:[{type:'input_dummy'},{type:'input_statement',name:'DO'}],colour:35},
+ {type:'repeat_rounds',message0:'repeat %1 rounds %2 %3',args0:[{type:'field_number',name:'COUNT',value:8,min:1,max:30,precision:1},{type:'input_dummy'},{type:'input_statement',name:'DO'}],previousStatement:null,nextStatement:null,colour:225},
+ {type:'light_random',message0:'light up random pod',previousStatement:null,nextStatement:null,colour:145},
+ {type:'light_specific',message0:'light up pod %1',args0:[{type:'field_dropdown',name:'POD',options:[['1','0'],['2','1'],['3','2'],['4','3']]}],previousStatement:null,nextStatement:null,colour:145},
+ {type:'pod_color',message0:'set pod %1 color to %2',args0:[{type:'input_value',name:'POD',check:'Number'},{type:'field_dropdown',name:'COLOR',options:[['red','red'],['green','green'],['blue','blue'],['yellow','yellow'],['purple','purple'],['orange','orange'],['white','white'],['off','off']]}],previousStatement:null,nextStatement:null,colour:145,tooltip:'Pod numbers start at 1. Micro:bit onboard LEDs cannot produce RGB colors; simulation shows colors.'},
+ {type:'pod_random',message0:'random pod number',output:'Number',colour:145},
+ {type:'pod_last_pressed',message0:'last pressed pod',output:'Number',colour:205},
+ {type:'pod_correct',message0:'last press was correct',output:'Boolean',colour:205},
+ {type:'wait_press',message0:'wait for button press (max %1 ms)',args0:[{type:'field_number',name:'MS',value:3000,min:100,max:15000,precision:100}],previousStatement:null,nextStatement:null,colour:205},
+ {type:'score_response',message0:'score correct + %1 wrong / timeout %2',args0:[{type:'field_number',name:'RIGHT',value:10,min:-1000,max:1000},{type:'field_number',name:'WRONG',value:-5,min:-1000,max:1000}],previousStatement:null,nextStatement:null,colour:285},
+ {type:'score_change',message0:'change score by %1',args0:[{type:'input_value',name:'VALUE',check:'Number'}],previousStatement:null,nextStatement:null,colour:285},
+ {type:'score_value',message0:'current score',output:'Number',colour:285},
+ {type:'clear_pods',message0:'turn off all pods',previousStatement:null,nextStatement:null,colour:145},
+ {type:'pause_ms',message0:'wait %1 milliseconds',args0:[{type:'input_value',name:'MS',check:'Number'}],previousStatement:null,nextStatement:null,colour:205},
+ {type:'game_message',message0:'show message %1',args0:[{type:'input_value',name:'TEXT'}],previousStatement:null,nextStatement:null,colour:35},
+ {type:'game_stop',message0:'end game',previousStatement:null,nextStatement:null,colour:35},
+ {type:'sequence_random',message0:'random sequence of %1 pods',args0:[{type:'input_value',name:'LENGTH',check:'Number'}],output:'Array',colour:55},
+ {type:'sequence_show',message0:'show sequence %1 each for %2 ms',args0:[{type:'input_value',name:'SEQUENCE',check:'Array'},{type:'field_number',name:'MS',value:600,min:100,max:4000,precision:100}],previousStatement:null,nextStatement:null,colour:55},
+ {type:'sequence_check',message0:'player repeats sequence %1 (timeout %2 ms each)',args0:[{type:'input_value',name:'SEQUENCE',check:'Array'},{type:'field_number',name:'MS',value:3000,min:100,max:15000,precision:100}],previousStatement:null,nextStatement:null,colour:55},
+ {type:'list_push',message0:'add %1 to list %2',args0:[{type:'input_value',name:'ITEM'},{type:'input_value',name:'LIST',check:'Array'}],previousStatement:null,nextStatement:null,colour:55},
+ {type:'list_match',message0:'list %1 equals list %2',args0:[{type:'input_value',name:'A',check:'Array'},{type:'input_value',name:'B',check:'Array'}],output:'Boolean',colour:55}
+]);
+const block=t=>({kind:'block',type:t});
+const toolbox={kind:'categoryToolbox',contents:[
+ {kind:'category',name:'Game',colour:'#bb7a31',contents:['game_start','repeat_rounds','game_message','game_stop'].map(block)},
+ {kind:'category',name:'Pods & Colors',colour:'#329067',contents:['light_random','light_specific','pod_color','pod_random','clear_pods'].map(block)},
+ {kind:'category',name:'Inputs & Timing',colour:'#3777bd',contents:['wait_press','pod_last_pressed','pod_correct','pause_ms'].map(block)},
+ {kind:'category',name:'Scoring',colour:'#995cb7',contents:['score_response','score_change','score_value'].map(block)},
+ {kind:'category',name:'Memory & Lists',colour:'#bb8741',contents:['sequence_random','sequence_show','sequence_check','list_push','list_match','lists_create_with','lists_length','lists_getIndex'].map(block)},
+ {kind:'category',name:'Logic',colour:'#5386c4',contents:['controls_if','logic_compare','logic_operation','logic_negate','logic_boolean','logic_null'].map(block)},
+ {kind:'category',name:'Loops',colour:'#4597a8',contents:['controls_repeat_ext','controls_whileUntil'].map(block)},
+ {kind:'category',name:'Math',colour:'#5a77c2',contents:['math_number','math_arithmetic','math_random_int','math_modulo','math_single'].map(block)},
+ {kind:'category',name:'Text',colour:'#4a9986',contents:['text','text_join'].map(block)},
+ {kind:'category',name:'Variables',custom:'VARIABLE',colour:'#a067b3'}
+]};
+ws=Blockly.inject('blockly',{toolbox,trashcan:true,scrollbars:true,zoom:{controls:true,wheel:true,startScale:.84,maxScale:1.4,minScale:.45},move:{scrollbars:true,drag:true,wheel:true}});
+window.addEventListener('resize',()=>Blockly.svgResize(ws));
+const reactionXml='<xml xmlns="https://developers.google.com/blockly/xml"><block type="game_start" x="30" y="35"><statement name="DO"><block type="repeat_rounds"><field name="COUNT">8</field><statement name="DO"><block type="light_random"><next><block type="wait_press"><field name="MS">3000</field><next><block type="score_response"><field name="RIGHT">10</field><field name="WRONG">-5</field><next><block type="clear_pods"><next><block type="pause_ms"><value name="MS"><shadow type="math_number"><field name="NUM">600</field></shadow></value></block></next></block></next></block></next></block></next></block></statement></block></statement></block></xml>';
+const memoryXml='<xml xmlns="https://developers.google.com/blockly/xml"><variables><variable id="seqvar">sequence</variable></variables><block type="game_start" x="30" y="35"><statement name="DO"><block type="repeat_rounds"><field name="COUNT">5</field><statement name="DO"><block type="variables_set"><field name="VAR" id="seqvar">sequence</field><value name="VALUE"><block type="sequence_random"><value name="LENGTH"><shadow type="math_number"><field name="NUM">3</field></shadow></value></block></value><next><block type="sequence_show"><field name="MS">600</field><value name="SEQUENCE"><block type="variables_get"><field name="VAR" id="seqvar">sequence</field></block></value><next><block type="sequence_check"><field name="MS">3000</field><value name="SEQUENCE"><block type="variables_get"><field name="VAR" id="seqvar">sequence</field></block></value><next><block type="score_response"><field name="RIGHT">20</field><field name="WRONG">-5</field><next><block type="clear_pods"><next><block type="pause_ms"><value name="MS"><shadow type="math_number"><field name="NUM">800</field></shadow></value></block></next></block></next></block></next></block></next></block></next></block></statement></block></statement></block></xml>';
+function template(xml,label){if(S.playing)return;ws.clear();Blockly.Xml.domToWorkspace(Blockly.utils.xml.textToDom(xml),ws);status(label+' loaded. Press Play.');}
+$('example').textContent='Reaction game';$('example').addEventListener('click',()=>template(reactionXml,'Reaction game'));template(reactionXml,'Reaction game');
+const memoryBtn=document.createElement('button');memoryBtn.id='memory';memoryBtn.type='button';memoryBtn.textContent='Memory game';$('example').after(memoryBtn);memoryBtn.addEventListener('click',()=>template(memoryXml,'Memory game'));
+$('save').addEventListener('click',()=>{const output={format:'freezepods-blockly-v2',workspace:Blockly.serialization.workspaces.save(ws)},blob=new Blob([JSON.stringify(output,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='my-freezepods-game.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),500);});
+$('load').addEventListener('click',()=>$('file').click());
+$('file').addEventListener('change',async e=>{const f=e.target.files?.[0];e.target.value='';if(!f||S.playing)return;try{const json=JSON.parse(await f.text());if(!['freezepods-blockly-v1','freezepods-blockly-v2'].includes(json.format)||!json.workspace)throw Error('Unrecognized project file');ws.clear();Blockly.serialization.workspaces.load(json.workspace,ws);status('Game loaded.');}catch(err){status('Load failed: '+err.message);}});
+function numeric(x,fallback=0){const n=Number(x);return Number.isFinite(n)?n:fallback;}
+function value(b,input,budget){return evaluate(b.getInputTargetBlock(input),budget);}
+function evaluate(b,budget){
+ if(!b)return 0;if(++budget.steps>10000)throw Error('Game instruction limit exceeded.');
+ const t=b.type,f=n=>b.getFieldValue(n),v=n=>value(b,n,budget);
+ switch(t){
+  case 'math_number':return numeric(f('NUM'));
+  case 'text':return f('TEXT')||'';
+  case 'logic_boolean':return f('BOOL')==='TRUE';
+  case 'logic_null':return null;
+  case 'variables_get':return S.vars.get(f('VAR'))??0;
+  case 'math_random_int':{const a=Math.floor(numeric(v('FROM'))),z=Math.floor(numeric(v('TO'))),lo=Math.min(a,z),hi=Math.max(a,z);return lo+Math.floor(Math.random()*(hi-lo+1));}
+  case 'pod_random':return 1+Math.floor(Math.random()*4);
+  case 'pod_last_pressed':return S.last?.index>=0?S.last.index+1:0;
+  case 'pod_correct':return Boolean(S.last?.correct);
+  case 'score_value':return S.score;
+  case 'math_arithmetic':{const a=numeric(v('A')),c=numeric(v('B'));switch(f('OP')){case 'ADD':return a+c;case 'MINUS':return a-c;case 'MULTIPLY':return a*c;case 'DIVIDE':return c===0?0:a/c;case 'POWER':return Math.pow(a,c)||0;}return 0;}
+  case 'math_modulo':{const a=numeric(v('DIVIDEND')),d=numeric(v('DIVISOR'));return d?a%d:0;}
+  case 'math_single':{const a=numeric(v('NUM'));switch(f('OP')){case 'ABS':return Math.abs(a);case 'ROOT':return Math.sqrt(Math.max(0,a));case 'NEG':return -a;case 'LN':return a>0?Math.log(a):0;case 'LOG10':return a>0?Math.log10(a):0;case 'EXP':return Math.exp(a);case 'POW10':return 10**a;}return a;}
+  case 'logic_compare':{const a=v('A'),z=v('B');switch(f('OP')){case 'EQ':return a===z;case 'NEQ':return a!==z;case 'LT':return a<z;case 'LTE':return a<=z;case 'GT':return a>z;case 'GTE':return a>=z;}return false;}
+  case 'logic_operation':return f('OP')==='AND'?Boolean(v('A'))&&Boolean(v('B')):Boolean(v('A'))||Boolean(v('B'));
+  case 'logic_negate':return !Boolean(v('BOOL'));
+  case 'lists_create_with':return [...Array(b.itemCount_||0)].map((_,i)=>v('ADD'+i));
+  case 'lists_length':{const a=v('VALUE');return Array.isArray(a)||typeof a==='string'?a.length:0;}
+  case 'lists_getIndex':{const a=v('VALUE');if(!Array.isArray(a))return 0;const at=f('WHERE');let i=at==='FIRST'?0:at==='LAST'?a.length-1:at==='FROM_END'?a.length-1-numeric(v('AT'),1)+1:at==='RANDOM'?Math.floor(Math.random()*a.length):numeric(v('AT'),1)-1;i=Math.floor(i);return f('MODE')==='GET_REMOVE'?a.splice(i,1)[0]:f('MODE')==='REMOVE'?(a.splice(i,1),0):a[i]??0;}
+  case 'list_match':return JSON.stringify(v('A'))===JSON.stringify(v('B'));
+  case 'text_join':return [...Array(b.itemCount_||0)].map((_,i)=>String(v('ADD'+i))).join('');
+  case 'sequence_random':return Array.from({length:Math.max(1,Math.min(20,Math.floor(numeric(v('LENGTH'),3))))},()=>1+Math.floor(Math.random()*4));
+  default:throw Error('Unsupported value block: '+t);
+ }
+}
+async function sleepCancelable(ms,token){const until=performance.now()+Math.max(0,Math.min(30000,numeric(ms)));while(on(token)&&performance.now()<until)await wait(Math.max(1,Math.min(50,until-performance.now())));}
+async function receive(ms,token){
+ if(!on(token))return null;
+ S.targetAt=performance.now();
+ let done;const promise=new Promise(resolve=>{done=resolve;S.pending=resolve;});
+ const timer=setTimeout(()=>{if(S.pending===done){S.pending=null;done(null);}},Math.max(100,Math.min(15000,numeric(ms,3000))));
+ const result=await promise;clearTimeout(timer);return on(token)?result:null;
+}
+async function perform(first,token,budget){
+ let b=first;
+ while(b&&on(token)){
+  if(++budget.steps>10000)throw Error('Game instruction limit exceeded. Shorten loops.');
+  if(performance.now()-budget.start>120000)throw Error('Maximum 2-minute session reached.');
+  const t=b.type,f=n=>b.getFieldValue(n),v=n=>value(b,n,budget);
+  switch(t){
+   case 'repeat_rounds':{const count=Math.max(1,Math.min(30,Math.floor(numeric(f('COUNT'),8))));for(let i=0;i<count&&on(token);i++){S.round++;stats();await perform(b.getInputTargetBlock('DO'),token,budget);}break;}
+   case 'controls_repeat_ext':{const n=Math.max(0,Math.min(100,Math.floor(numeric(v('TIMES')))));for(let i=0;i<n&&on(token);i++)await perform(b.getInputTargetBlock('DO'),token,budget);break;}
+   case 'controls_whileUntil':{let iterations=0;while(on(token)&&(f('MODE')==='WHILE'?Boolean(v('BOOL')):!Boolean(v('BOOL')))){if(++iterations>100)throw Error('Loop exceeded 100 iterations.');await perform(b.getInputTargetBlock('DO'),token,budget);await wait(0);}break;}
+   case 'controls_if':{let executed=false;for(let i=0;i<(b.elseifCount_||0)+1;i++){if(Boolean(v('IF'+i))){await perform(b.getInputTargetBlock('DO'+i),token,budget);executed=true;break;}}if(!executed&&b.elseCount_)await perform(b.getInputTargetBlock('ELSE'),token,budget);break;}
+   case 'variables_set':S.vars.set(f('VAR'),v('VALUE'));break;
+   case 'math_change':S.vars.set(f('VAR'),numeric(S.vars.get(f('VAR')))+numeric(v('DELTA')));break;
+   case 'light_random':{clear();const i=Math.floor(Math.random()*4);S.target=i;paint(i,'green');status('Pod '+(i+1)+' is lit. Press it!');log('Target: '+(i+1));break;}
+   case 'light_specific':{clear();const i=Number(f('POD'));S.target=i;paint(i,'green');status('Pod '+(i+1)+' is lit.');break;}
+   case 'pod_color':{const i=Math.floor(numeric(v('POD')))-1;paint(i,f('COLOR'));if(i>=0&&i<=3)S.target=i;break;}
+   case 'clear_pods':clear();break;
+   case 'wait_press':{const press=await receive(numeric(f('MS'),3000),token);if(!on(token))break;S.last=press?{...press,correct:press.index===S.target}:{index:-1,ms:null,correct:false};stats();log(press?'Pod '+(press.index+1)+' pressed in '+Math.round(press.ms)+' ms':'Timed out');break;}
+   case 'score_response':{if(S.last){const points=numeric(f(S.last.correct?'RIGHT':'WRONG'));S.score+=points;if(S.last.correct)S.hits++;stats();log('Score '+(points>=0?'+':'')+points);}break;}
+   case 'score_change':S.score+=numeric(v('VALUE'));stats();break;
+   case 'pause_ms':await sleepCancelable(v('MS'),token);break;
+   case 'game_message':{const message=String(v('TEXT')).slice(0,160);status(message);log(message);break;}
+   case 'game_stop':stop();break;
+   case 'sequence_show':{const seq=v('SEQUENCE');if(!Array.isArray(seq))throw Error('Show sequence needs a list.');status('Remember the sequence!');for(const number of seq.slice(0,20)){if(!on(token))break;clear();paint(Math.floor(numeric(number))-1,'blue');await sleepCancelable(numeric(f('MS'),600),token);clear();await sleepCancelable(160,token);}break;}
+   case 'sequence_check':{const seq=v('SEQUENCE');if(!Array.isArray(seq))throw Error('Check sequence needs a list.');status('Repeat the sequence in order!');let correct=true;let elapsed=0;for(const number of seq.slice(0,20)){const press=await receive(numeric(f('MS'),3000),token);if(!on(token))break;if(!press||press.index+1!==Number(number)){correct=false;break;}elapsed+=press.ms;paint(press.index,'green');await sleepCancelable(110,token);clear();}if(on(token)){S.last={index:-1,correct,ms:correct?elapsed:null};stats();log(correct?'Sequence correct!':'Sequence incorrect or timed out');}break;}
+   case 'list_push':{const arr=v('LIST');if(!Array.isArray(arr))throw Error('Add to list needs a list variable.');if(arr.length>=100)throw Error('List limit is 100 items.');arr.push(v('ITEM'));break;}
+   default:throw Error('Unsupported instruction: '+t);
   }
-  podButtons.forEach((button,i)=>button.addEventListener('click',()=>pressed(i)));
-  document.addEventListener('keydown', e=>{
-    if(e.repeat||/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)||e.target.closest('.blocklyWidgetDiv'))return;
-    if(['1','2','3','4'].includes(e.key))pressed(Number(e.key)-1);
-  });
-  function setMode(){state.mode=$('mode').value; $('connect').disabled=state.running;$('connect').hidden=state.mode!=='hardware';}
-  $('mode').addEventListener('change',setMode);
-  function updateDeviceCount(){ $('devices').textContent=state.devices.filter(d=>d?.device?.gatt?.connected).length+' micro:bits connected'; }
-  $('connect').addEventListener('click', async()=>{
-    if(!navigator.bluetooth){status('Web Bluetooth requires compatible Chrome/Edge and HTTPS.');return;}
-    if(state.devices.filter(Boolean).length>=4){status('Maximum four devices.');return;}
-    try {
-      const device=await navigator.bluetooth.requestDevice({filters:[{namePrefix:'BBC micro:bit'}],optionalServices:[uuid.buttonService,uuid.ledService]});
-      if(state.devices.some(d=>d&&d.device.id===device.id)){status('This micro:bit is already connected.');return;}
-      const server=await device.gatt.connect();
-      const buttons=await server.getPrimaryService(uuid.buttonService);
-      const leds=await server.getPrimaryService(uuid.ledService);
-      const matrix=await leds.getCharacteristic(uuid.matrix);
-      const index=Array.from({length:4},(_,i)=>i).find(i=>!state.devices[i]);
-      if(index===undefined)return;
-      const info={device,matrix};state.devices[index]=info;
-      for(const characteristicUuid of [uuid.buttonA,uuid.buttonB]){
-        const characteristic=await buttons.getCharacteristic(characteristicUuid);
-        await characteristic.startNotifications();
-        characteristic.addEventListener('characteristicvaluechanged',e=>{
-          if(e.target.value.getUint8(0)===1)pressed(index);
-        });
-      }
-      device.addEventListener('gattserverdisconnected',()=>{
-        state.devices[index]=null;updateDeviceCount();log('Pod '+(index+1)+' disconnected');
-      });
-      updateDeviceCount();status('Connected '+device.name+' as Pod '+(index+1));log('Connected '+device.name);
-    }catch(err){status('Bluetooth connection failed: '+err.message);log('Bluetooth: '+err.message);}
-  });
-  if(!window.Blockly){status('Blockly did not load. Check internet connection and reload.');return;}
-  const defs=[
-    {type:'game_start',message0:'when game starts %1 %2',args0:[{type:'input_dummy'},{type:'input_statement',name:'DO'}],colour:35,tooltip:'The starting point for your game.'},
-    {type:'repeat_rounds',message0:'repeat %1 rounds %2 %3',args0:[{type:'field_number',name:'COUNT',value:8,min:1,max:100,precision:1},{type:'input_dummy'},{type:'input_statement',name:'DO'}],previousStatement:null,nextStatement:null,colour:225},
-    {type:'light_random',message0:'light up a random pod',previousStatement:null,nextStatement:null,colour:145},
-    {type:'light_specific',message0:'light up pod %1',args0:[{type:'field_dropdown',name:'POD',options:[['1','0'],['2','1'],['3','2'],['4','3']]}],previousStatement:null,nextStatement:null,colour:145},
-    {type:'wait_press',message0:'wait for a press (max %1 ms)',args0:[{type:'field_number',name:'MS',value:3000,min:100,max:30000,precision:100}],previousStatement:null,nextStatement:null,colour:205},
-    {type:'score_response',message0:'score: correct + %1 wrong %2',args0:[{type:'field_number',name:'RIGHT',value:10,min:0,max:1000},{type:'field_number',name:'WRONG',value:-5,min:-1000,max:1000}],previousStatement:null,nextStatement:null,colour:285},
-    {type:'clear_pods',message0:'turn off all pods',previousStatement:null,nextStatement:null,colour:145},
-    {type:'pause_ms',message0:'wait %1 ms',args0:[{type:'field_number',name:'MS',value:600,min:0,max:30000,precision:100}],previousStatement:null,nextStatement:null,colour:205}
-  ];
-  Blockly.defineBlocksWithJsonArray(defs);
-  const toolbox={kind:'categoryToolbox',contents:[
-    {kind:'category',name:'Game',colour:'#BD7131',contents:[{kind:'block',type:'game_start'},{kind:'block',type:'repeat_rounds'}]},
-    {kind:'category',name:'Pods',colour:'#35845B',contents:[{kind:'block',type:'light_random'},{kind:'block',type:'light_specific'},{kind:'block',type:'clear_pods'}]},
-    {kind:'category',name:'Inputs & Time',colour:'#356CAD',contents:[{kind:'block',type:'wait_press'},{kind:'block',type:'pause_ms'}]},
-    {kind:'category',name:'Scoring',colour:'#9055AB',contents:[{kind:'block',type:'score_response'}]}
-  ]};
-  workspace=Blockly.inject('blockly',{toolbox,trashcan:true,scrollbars:true,zoom:{controls:true,wheel:true,startScale:0.87,maxScale:1.4,minScale:0.55},move:{scrollbars:true,drag:true,wheel:true}});
-  const example='<xml xmlns="https://developers.google.com/blockly/xml"><block type="game_start" x="35" y="40"><statement name="DO"><block type="repeat_rounds"><field name="COUNT">8</field><statement name="DO"><block type="light_random"><next><block type="wait_press"><field name="MS">3000</field><next><block type="score_response"><field name="RIGHT">10</field><field name="WRONG">-5</field><next><block type="clear_pods"><next><block type="pause_ms"><field name="MS">600</field></block></next></block></next></block></next></block></statement></block></statement></block></xml>';
-  function loadExample(){workspace.clear();Blockly.Xml.domToWorkspace(Blockly.utils.xml.textToDom(example),workspace);}
-  $('example').addEventListener('click',()=>{if(state.running)return;loadExample();status('Example loaded. Press Play.');});
-  loadExample();
-  window.addEventListener('resize',()=>Blockly.svgResize(workspace));
-  $('save').addEventListener('click',()=>{
-    const json=JSON.stringify({format:'freezepods-blockly-v1',workspace:Blockly.serialization.workspaces.save(workspace)},null,2);
-    const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([json],{type:'application/json'}));a.download='my-freezepods-game.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
-  });
-  $('load').addEventListener('click',()=>$('file').click());
-  $('file').addEventListener('change',async e=>{
-    const file=e.target.files[0];if(!file||state.running)return;
-    try{const data=JSON.parse(await file.text());if(data.format!=='freezepods-blockly-v1'||!data.workspace)throw Error('Unrecognized game file');workspace.clear();Blockly.serialization.workspaces.load(data.workspace,workspace);status('Game loaded.');}catch(err){status('Could not load game: '+err.message);}e.target.value='';
-  });
-  function active(token){return state.running&&token===state.token;}
-  async function delay(ms,token){const end=performance.now()+Math.min(ms,30000);while(active(token)&&performance.now()<end)await sleep(Math.min(60,end-performance.now()));}
-  async function waitPress(ms,token){
-    state.targetAt=performance.now();
-    let finish;
-    const promise=new Promise(resolve=>{finish=resolve;state.pending=resolve;});
-    const timer=setTimeout(()=>{if(state.pending===finish){state.pending=null;finish(null);}},Math.max(100,Math.min(30000,ms)));
-    const result=await promise;clearTimeout(timer);return active(token)?result:null;
-  }
-  async function runSequence(first,token,budget){
-    let block=first;
-    while(block&&active(token)){
-      if(++budget.steps>1500)throw Error('Too many instructions. Reduce repeats.');
-      const type=block.type;
-      if(type==='repeat_rounds'){
-        const n=Math.max(1,Math.min(100,Number(block.getFieldValue('COUNT'))||1));
-        for(let i=0;i<n&&active(token);i++){state.round++;stats();await runSequence(block.getInputTargetBlock('DO'),token,budget);}
-      }else if(type==='light_random'||type==='light_specific'){
-        clearPods();
-        const index=type==='light_random'?Math.floor(Math.random()*4):Number(block.getFieldValue('POD'));
-        state.target=index;state.last=null;paintPod(index,true);stats();status('Pod '+(index+1)+' is lit. Press it!');log('Target: Pod '+(index+1));
-      }else if(type==='wait_press'){
-        const outcome=await waitPress(Number(block.getFieldValue('MS'))||3000,token);
-        state.last=outcome?{...outcome,correct:outcome.index===state.target}:{index:-1,ms:null,correct:false};
-        if(active(token)){stats();log(outcome?'Pressed Pod '+(outcome.index+1)+' ('+Math.round(outcome.ms)+' ms)':'Time expired');}
-      }else if(type==='score_response'){
-        if(state.last){
-          const points=state.last.correct?Number(block.getFieldValue('RIGHT')):Number(block.getFieldValue('WRONG'));
-          state.score+=points;if(state.last.correct)state.hits++;stats();log((points>=0?'+':'')+points+' points');
-        }
-      }else if(type==='clear_pods'){clearPods();}
-      else if(type==='pause_ms'){await delay(Number(block.getFieldValue('MS'))||0,token);}
-      block=block.getNextBlock();
-    }
-  }
-  function finish(){clearPods();state.running=false;state.pending=null;$('play').disabled=false;$('stop').disabled=true;$('mode').disabled=false;setMode();}
-  $('play').addEventListener('click',async()=>{
-    if(state.running)return;
-    const starts=workspace.getTopBlocks(true).filter(b=>b.type==='game_start');
-    if(starts.length!==1){status('Use exactly one "when game starts" block.');return;}
-    if(state.mode==='hardware'&&state.devices.filter(d=>d?.device?.gatt?.connected).length<4){status('Hardware mode requires four connected micro:bits.');return;}
-    state.running=true;const token=++state.token;state.score=0;state.round=0;state.hits=0;state.last=null;stats();$('play').disabled=true;$('stop').disabled=false;$('mode').disabled=true;$('connect').disabled=true;log('Game started');
-    try{await runSequence(starts[0].getInputTargetBlock('DO'),token,{steps:0});if(active(token)){status('Game complete! Score: '+state.score);log('Game complete');}}
-    catch(err){status('Game stopped: '+err.message);log('Error: '+err.message);}
-    finally{if(token===state.token)finish();}
-  });
-  $('stop').addEventListener('click',()=>{
-    if(!state.running)return;state.running=false;state.token++;
-    if(state.pending){const resolve=state.pending;state.pending=null;resolve(null);}
-    finish();status('Game stopped.');log('Stopped by user');
-  });
-  setMode();stats();
+  b=b.getNextBlock();
+ }
+}
+function finish(){clear();S.playing=false;S.pending=null;$('play').disabled=false;$('stop').disabled=true;$('mode').disabled=false;switchMode();}
+function stop(){if(!S.playing)return;S.playing=false;S.run++;if(S.pending){const r=S.pending;S.pending=null;r(null);}finish();status('Game stopped.');log('Stopped');}
+$('stop').addEventListener('click',stop);
+$('play').addEventListener('click',async()=>{
+ if(S.playing)return;
+ const starts=ws.getTopBlocks(true).filter(b=>b.type==='game_start');
+ if(starts.length!==1){status('Add exactly one "when game starts" block.');return;}
+ if(S.mode==='hardware'&&S.devices.filter(d=>d?.device?.gatt?.connected).length<4){status('Connect four micro:bits first, or use Simulation.');return;}
+ S.playing=true;const token=++S.run;S.score=0;S.round=0;S.hits=0;S.last=null;S.vars.clear();stats();$('play').disabled=true;$('stop').disabled=false;$('mode').disabled=true;$('connect').disabled=true;log('Game started');
+ try{await perform(starts[0].getInputTargetBlock('DO'),token,{steps:0,start:performance.now()});if(on(token)){status('Game complete! Score: '+S.score);log('Game complete');}}
+ catch(e){status('Game error: '+e.message);log(e.message);}
+ finally{if(token===S.run)finish();}
+});
+switchMode();stats();
 })();
