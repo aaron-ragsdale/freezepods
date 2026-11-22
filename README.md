@@ -1,6 +1,40 @@
-# FreezePods Blockly Game Lab (v2)
+# FreezePods Game Lab (v3: Blockly + JavaScript)
 
-A free, static GitHub Pages website for students to invent physical reaction and memory games with Google Blockly. No React build, npm install, server, firmware compiler, or account is needed for **simulation**.
+A free, static GitHub Pages website for students to invent physical reaction and memory games with either Google Blockly or a JavaScript editor. No React build, npm install, server, firmware compiler, or account is needed for **simulation**.
+
+## Choose how to program
+
+Use the **Blocks / JavaScript** tabs in the editor. They are separate authoring modes, not automatic two-way translation. Switching modes preserves the Blockly workspace and the JavaScript draft independently.
+
+- **Blocks:** supported Blockly commands, variables, loops, lists, math, colors, and memory-game features. Extra blocks include **set all pods to color** and **wait for specific pod press**.
+- **JavaScript:** edit real JavaScript in the browser using the limited `pods` game API. Starter examples are provided for a reaction game and memory game. Save/load `.js` files separately from Blockly JSON.
+- Both modes operate the same four virtual pods and use the same score display.
+
+JavaScript mode accepts normal JavaScript syntax such as variables, arrays, functions, `for` loops, and `if` statements. Calls to the FreezePods API are asynchronous and must be `await`ed.
+
+Example:
+
+```js
+for (let round = 0; round < 5; round++) {
+  await pods.nextRound();
+  const target = await pods.randomPod();
+  await pods.light(target, 'blue');
+  const press = await pods.waitPress(3000);
+  await pods.addScore(press && press.pod === target ? 10 : -5);
+  await pods.off();
+  await pods.wait(500);
+}
+```
+
+Supported methods: `pods.light(podNumber, color)`, `pods.all(color)`, `pods.off()`, `pods.wait(milliseconds)`, `pods.waitPress(timeoutMs)`, `pods.randomPod()`, `pods.addScore(points)`, `pods.nextRound()`, `pods.message(text)`, `pods.getState()`.
+
+`pods.waitPress()` returns `null` on timeout or an object like `{pod:2,ms:450,correct:true}`. Pod numbers are **1 to 4**. The simulated pods support red, green, blue, yellow, purple, orange, white, and off.
+
+### Safety limitations of JavaScript mode
+
+Student scripts execute inside a `sandbox="allow-scripts"` iframe without same-origin permission and with a restrictive Content Security Policy. Only selected commands are forwarded to the parent through a validated message channel; scripts do not receive device objects or direct hardware APIs. The iframe is discarded when the game stops and a two-minute game limit is enforced for **cooperative/asynchronous programs**.
+
+**This is an educational sandbox, not a hardened untrusted-code service.** A synchronous infinite loop can still freeze the browser tab, and the text mode is best used for student-written or reviewed code rather than arbitrary downloaded scripts. Use Blockly for less experienced users.
 
 ## Features
 
@@ -47,7 +81,8 @@ Use **Pods & Colors → set pod [number] color to [color]**. Insert a Math numbe
 |---|---|
 | `index.html` | Layout and Google Blockly loading |
 | `style.css` | Responsive visual styles |
-| `app.js` | Custom Blockly blocks, safe interpreter, templates, simulation, experimental BLE |
+| `app.js` | Custom Blockly blocks, interpreter, simulation, Bluetooth and restricted parent bridge |
+| `editor.js` | JavaScript editor, starter programs and sandboxed game runner |
 | `README.md` | This guide |
 
 ## Bluetooth hardware (experimental, not validated)
@@ -58,7 +93,7 @@ The site supports Web Bluetooth in compatible desktop Chrome/Edge browsers over 
 
 ## Safety and limitations
 
-Student blocks are interpreted through a whitelist of supported instructions: **no eval or arbitrary compiled JavaScript**. Loops and execution time are capped. Variables reset at each Play. Imported games are Blockly JSON; only supported blocks execute. The app does not store personal data on a server.
+Blockly blocks are interpreted through a whitelist of supported instructions: **no eval for Blockly**. The optional JavaScript editor runs student JavaScript using a sandboxed iframe with a restricted command bridge. Loops and execution time are capped. Variables reset at each Play. Imported games are Blockly JSON; only supported blocks execute. The app does not store personal data on a server.
 
 ## Attribution
 
