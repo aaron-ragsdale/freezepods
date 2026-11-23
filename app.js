@@ -19,35 +19,90 @@ function paint(i,color){
   led.style.backgroundColor=COLORS[color];led.style.borderColor=color==='off'?'':'#ffffff88';
   led.style.boxShadow=color==='off'?'':'0 0 24px '+COLORS[color]+'aa';
   const m=S.devices[i]?.matrix;
-  if(S.mode==='hardware'&&m){const bytes=color==='off'?new Uint8Array(5):new Uint8Array([14,31,31,31,14]);m.writeValue(bytes).catch(e=>log('LED error: '+e.message));}
+  if(S.mode==='hardware'&&m&&S.devices[i]?.ready){const bytes=color==='off'?new Uint8Array(5):new Uint8Array([14,31,31,31,14]);m.writeValue(bytes).catch(e=>log('LED error: '+e.message));}
 }
 function clear(){for(let i=0;i<4;i++)paint(i,'off');S.target=-1;}
 function resolvePress(i){
   if(!S.playing||!S.pending)return;
+  if(S.mode==='hardware'&&!connectedIndices().includes(i))return;
   const fn=S.pending;S.pending=null;fn({index:i,ms:performance.now()-S.targetAt});
 }
 pods.forEach((b,i)=>b.addEventListener('click',()=>resolvePress(i)));
 document.addEventListener('keydown',e=>{if(e.repeat||/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)||e.target.closest('.blocklyWidgetDiv'))return;if('1234'.includes(e.key)&&e.key.length===1)resolvePress(Number(e.key)-1);});
-function updateConnections(){$('devices').textContent=S.devices.filter(d=>d?.device?.gatt?.connected).length+' micro:bits connected';}
-function switchMode(){S.mode=$('mode').value;$('connect').hidden=S.mode!=='hardware';$('connect').disabled=S.playing;}
+function connectedIndices(){return [0,1,2,3].filter(i=>S.devices[i]?.device?.gatt?.connected&&S.devices[i]?.ready);}
+function playableIndices(){return S.mode==='hardware'?connectedIndices():[0,1,2,3];}
+function randomIndex(){const indices=playableIndices();if(!indices.length)throw Error('Connect at least one micro:bit, or switch to Simulation.');return indices[Math.floor(Math.random()*indices.length)];}
+function requireConnected(i){if(S.mode==='hardware'&&!connectedIndices().includes(i))throw Error('Pod '+(i+1)+' is not connected. Use a connected pod or a random pod.');}
+function updateConnections(){
+ const ready=connectedIndices();
+ $('devices').textContent=ready.length+' micro:bit'+(ready.length===1?'':'s')+' ready'+(ready.length?' (Pod '+ready.map(i=>i+1).join(', ')+')':'');
+ for(let i=0;i<4;i++){
+  const connected=ready.includes(i), b=pods[i];
+  b.querySelector('small').textContent=S.mode==='hardware'?(connected?'Connected · A/B to press':'Not connected'):'Click to press';
+  b.classList.toggle('disconnected',S.mode==='hardware'&&!connected);
+ }
+ const diag=$('device-diagnostics');
+ if(diag)diag.textContent=ready.length?'Ready for hardware testing with '+ready.length+' micro:bit'+(ready.length===1?'':'s')+'. Random targets use connected devices only.':'No micro:bits ready. Select Connect micro:bit to pair and initialize Bluetooth services.';
+}
+function switchMode(){S.mode=$('mode').value;$('connect').hidden=S.mode!=='hardware';$('connect').disabled=S.playing;updateConnections();}
 $('mode').addEventListener('change',switchMode);
 $('connect').addEventListener('click',async()=>{
- if(!navigator.bluetooth){status('Web Bluetooth requires supported Chrome/Edge, Bluetooth and HTTPS.');return;}
- if(S.devices.filter(d=>d?.device?.gatt?.connected).length>=4){status('Four devices already connected.');return;}
+ if(!navigator.bluetooth){status('Web Bluetooth requires Chrome/Edge, enabled Bluetooth, and HTTPS.');return;}
+ if(connectedIndices().length>=4){status('Four devices already connected.');return;}
+ const button=$('connect');button.disabled=true;let device=null;
  try{
-  const device=await navigator.bluetooth.requestDevice({filters:[{namePrefix:'BBC micro:bit'}],optionalServices:[UUID.buttons,UUID.leds]});
-  if(S.devices.some(d=>d?.device?.id===device.id)){status('Device already connected.');return;}
-  const server=await device.gatt.connect(), buttons=await server.getPrimaryService(UUID.buttons), leds=await server.getPrimaryService(UUID.leds), matrix=await leds.getCharacteristic(UUID.matrix);
-  const index=[0,1,2,3].find(i=>!S.devices[i]||!S.devices[i].device.gatt.connected);
-  if(index===undefined)return;
-  S.devices[index]={device,matrix};
-  for(const id of [UUID.a,UUID.b]){
-   const ch=await buttons.getCharacteristic(id);await ch.startNotifications();
-   ch.addEventListener('characteristicvaluechanged',e=>{if(e.target.value.getUint8(0)===1)resolvePress(index);});
+  status('Choose a BBC micro:bit in Chrome’s Bluetooth device picker…');
+  device=await navigator.bluetooth.requestDevice({filters:[{namePrefix:'BBC micro:bit'}],optionalServices:[UUID.buttons,UUID.leds]});
+  const existing=S.devices.findIndex(d=>d?.device?.id===device.id&&d.device.gatt.connected&&d.ready);
+  if(existing!==-1){status('That micro:bit is already ready as Pod '+(existing+1)+'.');return;}
+  status('Bluetooth device selected. Connecting to GATT services…');
+  const server=await device.gatt.connect();
+  // The button service is essential; LED service is optional for diagnostics.
+  const buttons=await server.getPrimaryService(UUID.buttons);
+  const index=[0,1,2,3].find(i=>!S.devices[i]?.device?.gatt?.connected||!S.devices[i]?.ready);
+  if(index===undefined){status('All four slots are occupied.');return;}
+  const info={device,matrix:null,ready:false};
+  S.devices[index]=info;
+  device.addEventListener('gattserverdisconnected',()=>{
+   if(S.devices[index]?.device!==device)return;
+   S.devices[index]=null;updateConnections();log('Pod '+(index+1)+' disconnected');
+   if(S.playing&&S.mode==='hardware'){stop();status('Pod '+(index+1)+' disconnected. Game stopped.');}
+  });
+  let subscribed=0;
+  for(const uuid of [UUID.a,UUID.b]){
+   try{
+    const ch=await buttons.getCharacteristic(uuid);
+    await ch.startNotifications();
+    ch.addEventListener('characteristicvaluechanged',e=>{
+      const state=e.target.value.getUint8(0);
+      if(state!==1)return;
+      if(!S.playing){
+       status('Button press received from Pod '+(index+1)+'. Input works!');
+       log('Pod '+(index+1)+' button press detected');
+      }else resolvePress(index);
+    });
+    subscribed++;
+   }catch(err){log('Button characteristic unavailable: '+err.message);}
   }
-  device.addEventListener('gattserverdisconnected',()=>{S.devices[index]=null;updateConnections();log('Pod '+(index+1)+' disconnected');if(S.playing){stop();status('A micro:bit disconnected; game stopped.');}});
-  updateConnections();status('Connected '+device.name+' as Pod '+(index+1));log('Connected '+device.name);
- }catch(e){status('Bluetooth: '+e.message);}
+  if(!subscribed)throw Error('The micro:bit connected, but Button A/B notifications are unavailable. Check that its firmware enables the micro:bit Bluetooth Button Service.');
+  info.ready=true;
+  updateConnections();
+  log('Pod '+(index+1)+': Bluetooth button input ready');
+  try{
+   const leds=await server.getPrimaryService(UUID.leds);
+   info.matrix=await leds.getCharacteristic(UUID.matrix);
+   status('Pod '+(index+1)+' connected. Button input and LED output ready! Press button A or B to test.');
+   log('Pod '+(index+1)+': LED matrix available');
+  }catch(err){
+   info.matrix=null;
+   status('Pod '+(index+1)+' connected for button input, but LED matrix service unavailable. Check firmware/MakeCode Bluetooth services.');
+   log('Pod '+(index+1)+': LED service unavailable: '+err.message);
+  }
+ }catch(err){
+  status('Connection incomplete: '+err.message);
+  log('Bluetooth setup failed: '+err.message);
+  if(device){for(let i=0;i<4;i++)if(S.devices[i]?.device?.id===device.id&&!S.devices[i]?.ready)S.devices[i]=null;updateConnections();}
+ }finally{button.disabled=S.playing;}
 });
 if(!window.Blockly){status('Blockly failed to load. Please reload with an internet connection.');return;}
 Blockly.defineBlocksWithJsonArray([
@@ -110,7 +165,7 @@ function evaluate(b,budget){
   case 'logic_null':return null;
   case 'variables_get':return S.vars.get(f('VAR'))??0;
   case 'math_random_int':{const a=Math.floor(numeric(v('FROM'))),z=Math.floor(numeric(v('TO'))),lo=Math.min(a,z),hi=Math.max(a,z);return lo+Math.floor(Math.random()*(hi-lo+1));}
-  case 'pod_random':return 1+Math.floor(Math.random()*4);
+  case 'pod_random':return randomIndex()+1;
   case 'pod_last_pressed':return S.last?.index>=0?S.last.index+1:0;
   case 'pod_correct':return Boolean(S.last?.correct);
   case 'score_value':return S.score;
@@ -125,7 +180,7 @@ function evaluate(b,budget){
   case 'lists_getIndex':{const a=v('VALUE');if(!Array.isArray(a))return 0;const at=f('WHERE');let i=at==='FIRST'?0:at==='LAST'?a.length-1:at==='FROM_END'?a.length-1-numeric(v('AT'),1)+1:at==='RANDOM'?Math.floor(Math.random()*a.length):numeric(v('AT'),1)-1;i=Math.floor(i);return f('MODE')==='GET_REMOVE'?a.splice(i,1)[0]:f('MODE')==='REMOVE'?(a.splice(i,1),0):a[i]??0;}
   case 'list_match':return JSON.stringify(v('A'))===JSON.stringify(v('B'));
   case 'text_join':return [...Array(b.itemCount_||0)].map((_,i)=>String(v('ADD'+i))).join('');
-  case 'sequence_random':return Array.from({length:Math.max(1,Math.min(20,Math.floor(numeric(v('LENGTH'),3))))},()=>1+Math.floor(Math.random()*4));
+  case 'sequence_random':return Array.from({length:Math.max(1,Math.min(20,Math.floor(numeric(v('LENGTH'),3))))},()=>randomIndex()+1);
   default:throw Error('Unsupported value block: '+t);
  }
 }
@@ -150,12 +205,12 @@ async function perform(first,token,budget){
    case 'controls_if':{let executed=false;for(let i=0;i<(b.elseifCount_||0)+1;i++){if(Boolean(v('IF'+i))){await perform(b.getInputTargetBlock('DO'+i),token,budget);executed=true;break;}}if(!executed&&b.elseCount_)await perform(b.getInputTargetBlock('ELSE'),token,budget);break;}
    case 'variables_set':S.vars.set(f('VAR'),v('VALUE'));break;
    case 'math_change':S.vars.set(f('VAR'),numeric(S.vars.get(f('VAR')))+numeric(v('DELTA')));break;
-   case 'light_random':{clear();const i=Math.floor(Math.random()*4);S.target=i;paint(i,'green');status('Pod '+(i+1)+' is lit. Press it!');log('Target: '+(i+1));break;}
-   case 'light_specific':{clear();const i=Number(f('POD'));S.target=i;paint(i,'green');status('Pod '+(i+1)+' is lit.');break;}
-   case 'pod_color':{const i=Math.floor(numeric(v('POD')))-1;paint(i,f('COLOR'));if(i>=0&&i<=3)S.target=i;break;}
-   case 'pods_all_color':for(let i=0;i<4;i++)paint(i,f('COLOR'));break;
+   case 'light_random':{clear();const i=randomIndex();S.target=i;paint(i,'green');status('Pod '+(i+1)+' is lit. Press it!');log('Target: '+(i+1));break;}
+   case 'light_specific':{clear();const i=Number(f('POD'));requireConnected(i);S.target=i;paint(i,'green');status('Pod '+(i+1)+' is lit.');break;}
+   case 'pod_color':{const i=Math.floor(numeric(v('POD')))-1;requireConnected(i);paint(i,f('COLOR'));if(i>=0&&i<=3)S.target=i;break;}
+   case 'pods_all_color':for(const i of playableIndices())paint(i,f('COLOR'));break;
    case 'clear_pods':clear();break;
-   case 'pod_wait_specific':{const selected=Number(f('POD'));const press=await receive(numeric(f('MS'),3000),token);if(!on(token))break;S.last=press?{...press,correct:press.index===selected}:{index:-1,ms:null,correct:false};stats();log(press?'Pod '+(press.index+1)+' pressed':'Timed out');break;}
+   case 'pod_wait_specific':{const selected=Number(f('POD'));requireConnected(selected);const press=await receive(numeric(f('MS'),3000),token);if(!on(token))break;S.last=press?{...press,correct:press.index===selected}:{index:-1,ms:null,correct:false};stats();log(press?'Pod '+(press.index+1)+' pressed':'Timed out');break;}
    case 'wait_press':{const press=await receive(numeric(f('MS'),3000),token);if(!on(token))break;S.last=press?{...press,correct:press.index===S.target}:{index:-1,ms:null,correct:false};stats();log(press?'Pod '+(press.index+1)+' pressed in '+Math.round(press.ms)+' ms':'Timed out');break;}
    case 'score_response':{if(S.last){const points=numeric(f(S.last.correct?'RIGHT':'WRONG'));S.score+=points;if(S.last.correct)S.hits++;stats();log('Score '+(points>=0?'+':'')+points);}break;}
    case 'score_change':S.score+=numeric(v('VALUE'));stats();break;
@@ -178,7 +233,7 @@ $('play').addEventListener('click',async()=>{
  if(window.FreezePodsEditorMode==='javascript')return;
  const starts=ws.getTopBlocks(true).filter(b=>b.type==='game_start');
  if(starts.length!==1){status('Add exactly one "when game starts" block.');return;}
- if(S.mode==='hardware'&&S.devices.filter(d=>d?.device?.gatt?.connected).length<4){status('Connect four micro:bits first, or use Simulation.');return;}
+ if(S.mode==='hardware'&&connectedIndices().length===0){status('Connect at least one micro:bit first, or use Simulation.');return;}
  S.playing=true;const token=++S.run;S.score=0;S.round=0;S.hits=0;S.last=null;S.vars.clear();stats();$('play').disabled=true;$('stop').disabled=false;$('mode').disabled=true;$('connect').disabled=true;log('Game started');
  try{await perform(starts[0].getInputTargetBlock('DO'),token,{steps:0,start:performance.now()});if(on(token)){status('Game complete! Score: '+S.score);log('Game complete');}}
  catch(e){status('Game error: '+e.message);log(e.message);}
@@ -200,10 +255,10 @@ window.FreezePodsBridge={
   if(!on(token))throw Error('The game is not running.');
   const num=(n,d=0)=>Number.isFinite(Number(n))?Number(n):d;
   switch(cmd){
-   case 'light':{const i=Math.floor(num(args[0]))-1;if(i<0||i>3)throw Error('Pod number must be 1–4');const color=String(args[1]||'green').toLowerCase();if(!COLORS[color])throw Error('Unknown color');paint(i,color);S.target=i;return true;}
-   case 'all':{const color=String(args[0]||'off').toLowerCase();if(!COLORS[color])throw Error('Unknown color');for(let i=0;i<4;i++)paint(i,color);return true;}
+   case 'light':{const i=Math.floor(num(args[0]))-1;if(i<0||i>3)throw Error('Pod number must be 1–4');requireConnected(i);const color=String(args[1]||'green').toLowerCase();if(!COLORS[color])throw Error('Unknown color');paint(i,color);S.target=i;return true;}
+   case 'all':{const color=String(args[0]||'off').toLowerCase();if(!COLORS[color])throw Error('Unknown color');for(const i of playableIndices())paint(i,color);return true;}
    case 'clear':clear();return true;
-   case 'random':return Math.floor(Math.random()*4)+1;
+   case 'random':return randomIndex()+1;
    case 'pause':await sleepCancelable(Math.max(0,Math.min(30000,num(args[0]))),token);return true;
    case 'press':{const p=await receive(Math.max(100,Math.min(15000,num(args[0],3000))),token);if(!on(token))throw Error('Stopped');S.last=p?{...p,correct:p.index===S.target}:{index:-1,ms:null,correct:false};stats();return p?{pod:p.index+1,ms:Math.round(p.ms),correct:p.index===S.target}:null;}
    case 'score':S.score+=Math.max(-10000,Math.min(10000,num(args[0])));stats();return S.score;
