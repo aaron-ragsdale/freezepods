@@ -21,7 +21,7 @@
       <div class="mode"><label for="mode">Play with</label><select id="mode"><option value="simulation">Virtual pods</option><option value="hardware">Physical micro:bits</option></select><button id="connect" class="secondary" type="button">+ Connect micro:bit</button><span id="devices">0 micro:bits ready</span><small id="device-diagnostics" class="device-diagnostics">Connect 1–4 micro:bits using Chrome.</small><label class="sound-check"><input id="sound-toggle" type="checkbox" checked> <span>Game sounds</span></label><a class="device-setup-link" href="./firmware/README.md">Micro:bit setup guide</a></div>
     </section>
     <section class="workspace-panel">
-      <div class="section-head"><div><h2>My game</h2><p id="workspace-description">Choose Reaction game or Memory game, then remix with variables, lists, math, conditions, loops, and colored pods.</p></div>
+      <div class="section-head"><div><h2>Build your game</h2><p id="workspace-description">Start with a game template, then remix its rules, sounds, colors, and outputs using blocks.</p></div>
         <div class="toolbar"><button type="button" id="example">Load example</button><button type="button" id="save" class="secondary">Save game</button><button type="button" id="load" class="secondary">Load game</button><input type="file" id="file" accept=".json,application/json" hidden></div>
       </div>
       <div class="editor-tabs" role="tablist" aria-label="Programming editor">
@@ -47,15 +47,16 @@
       </section>
     </section>
     <section class="play-panel">
-      <div class="section-head"><div><h2>Play & test</h2><p id="status" role="status" aria-live="polite">Ready. Press Play to start.</p></div><div class="toolbar"><button id="play" class="primary" type="button">▶ Play game</button><button id="stop" class="secondary" type="button" disabled>■ Stop</button></div></div>
+      <div class="section-head"><div><h2>Play your game</h2><p id="status" role="status" aria-live="polite">Ready. Press Play to start.</p></div><div class="toolbar"><button id="play" class="primary" type="button">▶ Play game</button><button id="stop" class="secondary" type="button" disabled>■ Stop</button></div></div>
+      <div class="duel-scores"><span>Player 1 <strong id="player1-score">0</strong></span><span>Player 2 <strong id="player2-score">0</strong></span><small>Two-player scores appear in Duel games</small></div>
       <div class="stats"><div>Score <strong id="score">0</strong></div><div>Round <strong id="round">0</strong></div><div>Last reaction <strong id="reaction">—</strong></div><div>Correct hits <strong id="hits">0</strong></div></div>
       <div class="pods" id="pods">
-        <button type="button" class="pod" data-pod="0"><span class="led" aria-hidden="true"></span><strong>Pod 1</strong><small>Click to press</small></button>
-        <button type="button" class="pod" data-pod="1"><span class="led" aria-hidden="true"></span><strong>Pod 2</strong><small>Click to press</small></button>
-        <button type="button" class="pod" data-pod="2"><span class="led" aria-hidden="true"></span><strong>Pod 3</strong><small>Click to press</small></button>
-        <button type="button" class="pod" data-pod="3"><span class="led" aria-hidden="true"></span><strong>Pod 4</strong><small>Click to press</small></button>
+        <button type="button" class="pod" data-pod="0"><span class="led" aria-hidden="true"></span><strong>Pod 1</strong><span class="pixel-strip" aria-label="12 virtual RGB pixels"></span><small>Click to press</small></button>
+        <button type="button" class="pod" data-pod="1"><span class="led" aria-hidden="true"></span><strong>Pod 2</strong><span class="pixel-strip" aria-label="12 virtual RGB pixels"></span><small>Click to press</small></button>
+        <button type="button" class="pod" data-pod="2"><span class="led" aria-hidden="true"></span><strong>Pod 3</strong><span class="pixel-strip" aria-label="12 virtual RGB pixels"></span><small>Click to press</small></button>
+        <button type="button" class="pod" data-pod="3"><span class="led" aria-hidden="true"></span><strong>Pod 4</strong><span class="pixel-strip" aria-label="12 virtual RGB pixels"></span><small>Click to press</small></button>
       </div>
-      <p class="hint">Click virtual pods or use keys 1–4. With physical micro:bits, press A or B. Game sounds come from the browser, not the micro:bit. The built-in micro:bit display is monochrome.</p>
+      <p class="hint">Virtual pods use clicks or keys 1–4. Physical micro:bits use button A/B and their monochrome LED matrix. The 12-pixel RGB strips are an interactive browser preview, not physical strip control yet.</p>
       <details><summary>See game events</summary><ol id="log" aria-live="polite"></ol></details>
     </section>
   </main>
