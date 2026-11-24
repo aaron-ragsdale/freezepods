@@ -62,6 +62,7 @@ function switchTab(mode){
  blockBtn.classList.toggle('chosen',!js);jsBtn.classList.toggle('chosen',js);
  $('example').hidden=js;
  const mem=$('memory');if(mem)mem.hidden=js;
+ for(const id of ['speed-game','simon-game','duel-game']){const el=$(id);if(el)el.hidden=js;}
  $('save').hidden=js;$('load').hidden=js;
  $('workspace-description').textContent=js?'Write JavaScript using the FreezePods API. Each run starts a fresh game.':'Choose a starter game or remix with variables, lists, math, conditions, loops, and colored pods.';
  if(!js&&window.Blockly?.getMainWorkspace())setTimeout(()=>Blockly.svgResize(Blockly.getMainWorkspace()),40);
@@ -111,6 +112,10 @@ const bootstrap=[
 "   randomPod:()=>call('random'),",
 "   message:(text)=>call('message',[text]),",
 "   sound:(effect='beep')=>call('sound',[effect]),",
+"   rgbFill:(pod,color)=>call('rgbFill',[pod,color]),",
+"   rgbPixel:(pod,pixel,color)=>call('rgbPixel',[pod,pixel,color]),",
+"   rgbRainbow:(pod)=>call('rgbRainbow',[pod]),",
+"   rgbBrightness:(percent)=>call('rgbBrightness',[percent]),",
 "   getState:()=>call('state')",
 "  });",
 "  (async()=>{",
