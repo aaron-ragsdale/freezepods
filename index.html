@@ -42,7 +42,7 @@
         </div>
         <label for="js-code" class="editor-label">Write your game's JavaScript</label>
         <textarea id="js-code" spellcheck="false" autocomplete="off" autocapitalize="off" aria-label="JavaScript code editor"></textarea>
-        <p class="hint">Commands: <code>await pods.sound(&#39;success&#39;)</code>, <code>await pods.light(1, 'blue')</code>, <code>await pods.off()</code>, <code>await pods.wait(500)</code>, <code>await pods.waitPress(3000)</code>, <code>await pods.addScore(10)</code>, <code>await pods.nextRound()</code>, <code>await pods.randomPod()</code>, <code>await pods.message('Hello')</code>. Use <code>for</code>, <code>if</code>, arrays and variables to build games. JavaScript mode is separate from Blocks mode.</p>
+        <p class="hint">Commands: <code>await pods.digitalWrite(1, 0, true)</code>, <code>await pods.sound(&#39;success&#39;)</code>, <code>await pods.light(1, 'blue')</code>, <code>await pods.off()</code>, <code>await pods.wait(500)</code>, <code>await pods.waitPress(3000)</code>, <code>await pods.addScore(10)</code>, <code>await pods.nextRound()</code>, <code>await pods.randomPod()</code>, <code>await pods.message('Hello')</code>. Use <code>for</code>, <code>if</code>, arrays and variables to build games. JavaScript mode is separate from Blocks mode.</p>
         <p class="hint">Security: programs run inside a sandboxed frame with only the limited FreezePods command interface. This is an early educational sandbox, not a hardened environment for running untrusted third-party code.</p>
       </section>
     </section>
@@ -51,12 +51,12 @@
       <div class="duel-scores"><span>Player 1 <strong id="player1-score">0</strong></span><span>Player 2 <strong id="player2-score">0</strong></span><small>Two-player scores appear in Duel games</small></div>
       <div class="stats"><div>Score <strong id="score">0</strong></div><div>Round <strong id="round">0</strong></div><div>Last reaction <strong id="reaction">—</strong></div><div>Correct hits <strong id="hits">0</strong></div></div>
       <div class="pods" id="pods">
-        <button type="button" class="pod" data-pod="0"><span class="led" aria-hidden="true"></span><strong>Pod 1</strong><span class="pixel-strip" aria-label="12 virtual RGB pixels"></span><small>Click to press</small></button>
-        <button type="button" class="pod" data-pod="1"><span class="led" aria-hidden="true"></span><strong>Pod 2</strong><span class="pixel-strip" aria-label="12 virtual RGB pixels"></span><small>Click to press</small></button>
-        <button type="button" class="pod" data-pod="2"><span class="led" aria-hidden="true"></span><strong>Pod 3</strong><span class="pixel-strip" aria-label="12 virtual RGB pixels"></span><small>Click to press</small></button>
-        <button type="button" class="pod" data-pod="3"><span class="led" aria-hidden="true"></span><strong>Pod 4</strong><span class="pixel-strip" aria-label="12 virtual RGB pixels"></span><small>Click to press</small></button>
+        <button type="button" class="pod" data-pod="0"><span class="led" aria-hidden="true"></span><strong>Pod 1</strong><small>Click to press</small></button>
+        <button type="button" class="pod" data-pod="1"><span class="led" aria-hidden="true"></span><strong>Pod 2</strong><small>Click to press</small></button>
+        <button type="button" class="pod" data-pod="2"><span class="led" aria-hidden="true"></span><strong>Pod 3</strong><small>Click to press</small></button>
+        <button type="button" class="pod" data-pod="3"><span class="led" aria-hidden="true"></span><strong>Pod 4</strong><small>Click to press</small></button>
       </div>
-      <p class="hint">Virtual pods use clicks or keys 1–4. Physical micro:bits use button A/B and their monochrome LED matrix. The 12-pixel RGB strips are an interactive browser preview, not physical strip control yet.</p>
+      <p class="hint">Virtual pods use clicks or keys 1–4. Physical micro:bits use button A/B and their monochrome LED matrix. Use Output Pins blocks for digital HIGH/LOW control on P0, P1, or P2 with compatible Bluetooth firmware. NeoPixel strips require their own timing-aware firmware.</p>
       <details><summary>See game events</summary><ol id="log" aria-live="polite"></ol></details>
     </section>
   </main>
