@@ -11,6 +11,7 @@ function duelScores(){const a=$('player1-score'),b=$('player2-score');if(a)a.tex
 async function digitalWrite(index,pin,high){
  if(index<0||index>3)throw Error('Pod must be 1–4.');
  if(![0,1,2].includes(pin))throw Error('Choose P0, P1 or P2.');
+ if(pin===1&&S.mode==='hardware')throw Error('P1 is reserved for the NeoPixel strip in the expanded firmware. Use P0 or P2 for GPIO.');
  if(S.mode==='simulation'){status('Virtual pod '+(index+1)+' P'+pin+' → '+(high?'HIGH':'LOW'));log('Preview: Pod '+(index+1)+' P'+pin+' '+(high?'HIGH':'LOW'));return;}
  requireConnected(index);
  const info=S.devices[index];
@@ -318,7 +319,7 @@ Blockly.defineBlocksWithJsonArray([
  {type:'neo_clear',message0:'Pod %1 clear LEDs',args0:[{type:'field_dropdown',name:'POD',options:[['1','0'],['2','1'],['3','2'],['4','3']]}],previousStatement:null,nextStatement:null,colour:165},
  {type:'device_icon',message0:'Pod %1 show icon %2',args0:[{type:'field_dropdown',name:'POD',options:[['1','0'],['2','1'],['3','2'],['4','3']]},{type:'field_dropdown',name:'ICON',options:[['clear','0'],['heart','1'],['check','2'],['X','3'],['diamond','4']]}],previousStatement:null,nextStatement:null,colour:145},
  {type:'pin_pwm',message0:'Pod %1 PWM pin %2 value %3',args0:[{type:'field_dropdown',name:'POD',options:[['1','0'],['2','1'],['3','2'],['4','3']]},{type:'field_dropdown',name:'PIN',options:[['P0','0'],['P2','2']]},{type:'field_number',name:'VALUE',value:512,min:0,max:1023}],previousStatement:null,nextStatement:null,colour:165},
- {type:'gpio_write',message0:'digital output: Pod %1 pin %2 %3',args0:[{type:'input_value',name:'POD',check:'Number'},{type:'field_dropdown',name:'PIN',options:[['P0','0'],['P1','1'],['P2','2']]},{type:'field_dropdown',name:'STATE',options:[['HIGH','1'],['LOW','0']]}],previousStatement:null,nextStatement:null,colour:165,tooltip:'Use Bluetooth I/O Pin Service for digital HIGH/LOW. Does not drive addressable LEDs.'},
+ {type:'gpio_write',message0:'digital output: Pod %1 pin %2 %3',args0:[{type:'input_value',name:'POD',check:'Number'},{type:'field_dropdown',name:'PIN',options:[['P0','0'],['P1','1'],['P2','2']]},{type:'field_dropdown',name:'STATE',options:[['HIGH','1'],['LOW','0']]}],previousStatement:null,nextStatement:null,colour:165,tooltip:'GPIO HIGH/LOW using Bluetooth. P1 is reserved for NeoPixels in the expanded firmware.'},
 ]);
 const block=t=>({kind:'block',type:t});
 const toolbox={kind:'categoryToolbox',contents:[
