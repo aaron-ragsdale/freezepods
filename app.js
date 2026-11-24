@@ -5,6 +5,38 @@ const $ = id => document.getElementById(id);
 const wait = ms => new Promise(r => setTimeout(r, ms));
 const S={playing:false,run:0,score:0,round:0,hits:0,last:null,target:-1,devices:[],colors:['off','off','off','off'],mode:'simulation',pending:null,vars:new Map()};
 const COLORS={red:'#ef5961',green:'#39d27a',blue:'#4f8cf7',yellow:'#f5c344',purple:'#ad73ed',orange:'#fa943b',white:'#ffffff',off:'#d7e1eb'};
+
+const PIXEL_COUNT=12;
+const rgbValues=Array.from({length:4},()=>Array(PIXEL_COUNT).fill('#202b3c'));
+let rgbBrightness=80;
+let rgbHardwareWarned=false;
+let duelTotals=[0,0];
+function renderPixels(i){
+ const holder=pods[i]?.querySelector('.pixel-strip');if(!holder)return;
+ if(!holder.children.length){
+  for(let p=0;p<PIXEL_COUNT;p++){const item=document.createElement('span');item.className='pixel';holder.appendChild(item);}
+ }
+ [...holder.children].forEach((item,p)=>{const hex=rgbValues[i][p];item.style.background=hex;item.style.opacity=hex==='#202b3c'?'0.3':String(Math.max(.12,rgbBrightness/100));item.style.boxShadow=hex==='#202b3c'?'none':'0 0 7px '+hex;});
+}
+function rgbStatus(){
+ if(S.mode==='hardware'&&!rgbHardwareWarned){rgbHardwareWarned=true;log('Addressable RGB strip blocks are preview-only in hardware mode. Standard micro:bit BLE LED service cannot control NeoPixels. A compatible strip adapter firmware is required.');status('RGB strip output is simulated only. The onboard micro:bit 5×5 LEDs still work normally.');}
+}
+function stripFill(i,color){
+ if(i<0||i>3)throw Error('Pod number must be 1–4');
+ rgbValues[i].fill(COLORS[color]||'#202b3c');renderPixels(i);rgbStatus();
+}
+function stripPixel(i,p,color){
+ if(i<0||i>3)throw Error('Pod number must be 1–4');
+ if(p<0||p>=PIXEL_COUNT)throw Error('Pixel number must be 1–'+PIXEL_COUNT);
+ rgbValues[i][p]=COLORS[color]||'#202b3c';renderPixels(i);rgbStatus();
+}
+function stripRainbow(i){
+ if(i<0||i>3)throw Error('Pod number must be 1–4');
+ for(let p=0;p<PIXEL_COUNT;p++){const hue=p*360/PIXEL_COUNT;rgbValues[i][p]='hsl('+hue+' 95% 55%)';}
+ renderPixels(i);rgbStatus();
+}
+function duelScores(){const a=$('player1-score'),b=$('player2-score');if(a)a.textContent=duelTotals[0];if(b)b.textContent=duelTotals[1];}
+
 const UUID={buttons:'e95d9882-251d-470a-a062-fa1922dfa9a8',a:'e95dda90-251d-470a-a062-fa1922dfa9a8',b:'e95dda91-251d-470a-a062-fa1922dfa9a8',leds:'e95dd91d-251d-470a-a062-fa1922dfa9a8',matrix:'e95d7b77-251d-470a-a062-fa1922dfa9a8'};
 const pods=[...document.querySelectorAll('.pod')];let ws;
 
@@ -205,16 +237,25 @@ Blockly.defineBlocksWithJsonArray([
  {type:'sequence_show',message0:'show sequence %1 each for %2 ms',args0:[{type:'input_value',name:'SEQUENCE',check:'Array'},{type:'field_number',name:'MS',value:600,min:100,max:4000,precision:100}],previousStatement:null,nextStatement:null,colour:55},
  {type:'sequence_check',message0:'player repeats sequence %1 (timeout %2 ms each)',args0:[{type:'input_value',name:'SEQUENCE',check:'Array'},{type:'field_number',name:'MS',value:3000,min:100,max:15000,precision:100}],previousStatement:null,nextStatement:null,colour:55},
  {type:'list_push',message0:'add %1 to list %2',args0:[{type:'input_value',name:'ITEM'},{type:'input_value',name:'LIST',check:'Array'}],previousStatement:null,nextStatement:null,colour:55},
- {type:'list_match',message0:'list %1 equals list %2',args0:[{type:'input_value',name:'A',check:'Array'},{type:'input_value',name:'B',check:'Array'}],output:'Boolean',colour:55}
+ {type:'list_match',message0:'list %1 equals list %2',args0:[{type:'input_value',name:'A',check:'Array'},{type:'input_value',name:'B',check:'Array'}],output:'Boolean',colour:55},
+
+ {type:'speed_game',message0:'Speed Challenge: %1 seconds, + %2 for hit, %3 for miss',args0:[{type:'field_number',name:'SECONDS',value:20,min:5,max:90,precision:1},{type:'field_number',name:'RIGHT',value:10,min:0,max:100},{type:'field_number',name:'WRONG',value:-5,min:-100,max:0}],previousStatement:null,nextStatement:null,colour:35,tooltip:'Keep hitting randomly lit pods until the timer ends.'},
+ {type:'simon_game',message0:'Simon Says: %1 levels, start with %2 flashes',args0:[{type:'field_number',name:'LEVELS',value:5,min:1,max:12,precision:1},{type:'field_number',name:'START',value:1,min:1,max:6,precision:1}],previousStatement:null,nextStatement:null,colour:55,tooltip:'Remember an increasing sequence. One more pod is added after each level.'},
+ {type:'duel_game',message0:'Two-player duel: %1 rounds, + %2 to fastest player',args0:[{type:'field_number',name:'ROUNDS',value:10,min:1,max:30,precision:1},{type:'field_number',name:'POINTS',value:10,min:1,max:100,precision:1}],previousStatement:null,nextStatement:null,colour:35,tooltip:'Player 1 uses Pod 1, Player 2 uses Pod 2. One pod is the winner each round.'},
+ {type:'strip_fill',message0:'RGB strip: fill pod %1 with %2',args0:[{type:'input_value',name:'POD',check:'Number'},{type:'field_dropdown',name:'COLOR',options:[['red','red'],['green','green'],['blue','blue'],['yellow','yellow'],['purple','purple'],['orange','orange'],['white','white'],['off','off']]}],previousStatement:null,nextStatement:null,colour:165,tooltip:'Shows 12 addressable RGB pixels in simulation; requires future external hardware adapter for real strips.'},
+ {type:'strip_pixel',message0:'RGB strip: pod %1 pixel %2 color %3',args0:[{type:'input_value',name:'POD',check:'Number'},{type:'input_value',name:'PIXEL',check:'Number'},{type:'field_dropdown',name:'COLOR',options:[['red','red'],['green','green'],['blue','blue'],['yellow','yellow'],['purple','purple'],['orange','orange'],['white','white'],['off','off']]}],previousStatement:null,nextStatement:null,colour:165},
+ {type:'strip_rainbow',message0:'RGB strip: rainbow on pod %1',args0:[{type:'input_value',name:'POD',check:'Number'}],previousStatement:null,nextStatement:null,colour:165},
+ {type:'strip_brightness',message0:'RGB strip: set brightness %1 %',args0:[{type:'field_number',name:'BRIGHT',value:80,min:0,max:100,precision:5}],previousStatement:null,nextStatement:null,colour:165},
 ]);
 const block=t=>({kind:'block',type:t});
 const toolbox={kind:'categoryToolbox',contents:[
- {kind:'category',name:'Game',colour:'#bb7a31',contents:['game_start','repeat_rounds','game_message','game_stop'].map(block)},
+ {kind:'category',name:'Game',colour:'#bb7a31',contents:['game_start','repeat_rounds','speed_game','duel_game','game_message','game_stop'].map(block)},
  {kind:'category',name:'Pods & Colors',colour:'#329067',contents:['light_random','light_specific','pod_color','flash_pod','pods_all_color','pod_random','clear_pods'].map(block)},
+ {kind:'category',name:'RGB LED Strip (preview)',colour:'#4b9caa',contents:['strip_fill','strip_pixel','strip_rainbow','strip_brightness'].map(block)},
  {kind:'category',name:'Inputs & Timing',colour:'#3777bd',contents:['wait_press','pod_wait_specific','pod_last_pressed','pod_correct','pause_ms','wait_random'].map(block)},
  {kind:'category',name:'Sounds & Effects',colour:'#bb5292',contents:['sound_play','countdown','feedback_last'].map(block)},
  {kind:'category',name:'Scoring',colour:'#995cb7',contents:['score_response','score_change','score_value'].map(block)},
- {kind:'category',name:'Memory & Lists',colour:'#bb8741',contents:['sequence_random','sequence_show','sequence_check','list_push','list_match','lists_create_with','lists_length','lists_getIndex'].map(block)},
+ {kind:'category',name:'Memory & Lists',colour:'#bb8741',contents:['simon_game','sequence_random','sequence_show','sequence_check','list_push','list_match','lists_create_with','lists_length','lists_getIndex'].map(block)},
  {kind:'category',name:'Logic',colour:'#5386c4',contents:['controls_if','logic_compare','logic_operation','logic_negate','logic_boolean','logic_null'].map(block)},
  {kind:'category',name:'Loops',colour:'#4597a8',contents:['controls_repeat_ext','controls_whileUntil'].map(block)},
  {kind:'category',name:'Math',colour:'#5a77c2',contents:['math_number','math_arithmetic','math_random_int','math_modulo','math_single'].map(block)},
