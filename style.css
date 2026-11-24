@@ -16,3 +16,10 @@
 @media(max-width:750px){.editor-tabs{padding:12px 14px}.js-editor-panel{padding:0 14px 18px}.js-editor-toolbar{align-items:flex-start}.js-editor-toolbar .toolbar{gap:5px}#js-code{font-size:12px}}
 
 .device-diagnostics{display:block;color:#5c6f83;font-size:11px;line-height:1.5;max-width:275px}.pod.disconnected{opacity:.55;cursor:default}.pod.disconnected .led{filter:grayscale(1)}
+
+/* Dedicated Bluetooth LED diagnostic and setup */
+.led-test-controls{display:flex;flex-direction:column;gap:6px;padding-top:8px;border-top:1px solid #e5ebf3}
+.led-test-controls label{font-size:12px;font-weight:750;color:#566479}
+.led-test-controls select{min-width:0}
+.led-test-controls button{width:100%}
+.device-setup-link{display:inline-block;margin-top:4px;font-size:12px;font-weight:650}
