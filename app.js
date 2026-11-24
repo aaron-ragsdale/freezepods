@@ -323,7 +323,7 @@ Blockly.defineBlocksWithJsonArray([
 const block=t=>({kind:'block',type:t});
 const toolbox={kind:'categoryToolbox',contents:[
  {kind:'category',name:'Games',colour:'#bb7a31',contents:['game_start','repeat_rounds','speed_game','duel_game','game_message','game_stop'].map(block)},
- {kind:'category',name:'Pod Inputs',colour:'#3777bd',contents:['wait_press','pod_wait_specific','pod_last_pressed','pod_correct','pin_sample'].map(block)},
+ {kind:'category',name:'Pod Inputs',colour:'#3777bd',contents:['wait_press','pod_wait_specific','pod_last_pressed','pod_correct','pin_sample','sensor_sample'].map(block)},
  {kind:'category',name:'Pod Outputs',colour:'#329067',contents:['light_random','light_specific','pod_color','flash_pod','pods_all_color','pod_random','clear_pods','gpio_write'].map(block)},
  {kind:'category',name:'Timing & Sounds',colour:'#bb5292',contents:['pause_ms','wait_random','countdown','sound_play','feedback_last'].map(block)},
  {kind:'category',name:'Scoring',colour:'#995cb7',contents:['score_response','score_change','score_value'].map(block)},
