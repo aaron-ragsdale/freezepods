@@ -7,9 +7,9 @@ A three-part printable housing for a micro:bit. No screws, nuts, bolts, washers 
 ## Parts and CAD
 
 - [Editable OpenSCAD source](FreezePods.scad)
-- Base: holds the board and optional battery pack.
-- Lid: snap-fit skirt with LED viewing window.
-- Ring pusher: extended split legs contact the A/B buttons.
+- [Base STL](FreezePods_base.stl): holds the board and optional battery pack.
+- [Lid STL](FreezePods_lid.stl): snap-fit skirt with LED viewing window.
+- [Ring pusher STL](FreezePods_pusher.stl): extended split legs contact the A/B buttons.
 
 To export each STL using the free [OpenSCAD](https://openscad.org/) application, open the source, set `part` to `base`, `lid`, or `pusher`, render with F6 and export STL. All dimensions are in mm.
 
