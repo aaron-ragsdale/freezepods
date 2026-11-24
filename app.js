@@ -33,6 +33,8 @@ function connectedIndices(){return [0,1,2,3].filter(i=>S.devices[i]?.device?.gat
 function playableIndices(){return S.mode==='hardware'?connectedIndices():[0,1,2,3];}
 function randomIndex(){const indices=playableIndices();if(!indices.length)throw Error('Connect at least one micro:bit, or switch to Simulation.');return indices[Math.floor(Math.random()*indices.length)];}
 function requireConnected(i){if(S.mode==='hardware'&&!connectedIndices().includes(i))throw Error('Pod '+(i+1)+' is not connected. Use a connected pod or a random pod.');}
+let bluetoothStage='';
+function connectionStage(message){bluetoothStage=message;const el=$('device-diagnostics');if(el)el.textContent=message;log('BLE: '+message);}
 function updateConnections(){
  const ready=connectedIndices();
  $('devices').textContent=ready.length+' micro:bit'+(ready.length===1?'':'s')+' ready'+(ready.length?' (Pod '+ready.map(i=>i+1).join(', ')+')':'');
@@ -42,7 +44,7 @@ function updateConnections(){
   b.classList.toggle('disconnected',S.mode==='hardware'&&!connected);
  }
  const diag=$('device-diagnostics');
- if(diag)diag.textContent=ready.length?'Ready for hardware testing with '+ready.length+' micro:bit'+(ready.length===1?'':'s')+'. Random targets use connected devices only.':'No micro:bits ready. Select Connect micro:bit to pair and initialize Bluetooth services.';
+ if(diag)diag.textContent=bluetoothStage||(ready.length?'Ready for hardware testing with '+ready.length+' micro:bit'+(ready.length===1?'':'s')+'. Random targets use connected devices only.':'No micro:bits ready. Select Connect micro:bit to pair and initialize Bluetooth services.');
 }
 function switchMode(){S.mode=$('mode').value;$('connect').hidden=S.mode!=='hardware';$('connect').disabled=S.playing;updateConnections();}
 $('mode').addEventListener('change',switchMode);
@@ -51,14 +53,17 @@ $('connect').addEventListener('click',async()=>{
  if(connectedIndices().length>=4){status('Four devices already connected.');return;}
  const button=$('connect');button.disabled=true;let device=null;
  try{
-  status('Choose a BBC micro:bit in Chrome’s Bluetooth device picker…');
+  connectionStage('Step 1/4: Waiting for Chrome device selection…');status('Choose a BBC micro:bit in Chrome’s Bluetooth device picker…');
   device=await navigator.bluetooth.requestDevice({filters:[{namePrefix:'BBC micro:bit'}],optionalServices:[UUID.buttons,UUID.leds]});
+  connectionStage('Step 2/4: Chrome selected '+(device.name||'micro:bit')+'. Connecting to its GATT server…');
   const existing=S.devices.findIndex(d=>d?.device?.id===device.id&&d.device.gatt.connected&&d.ready);
   if(existing!==-1){status('That micro:bit is already ready as Pod '+(existing+1)+'.');return;}
   status('Bluetooth device selected. Connecting to GATT services…');
   const server=await device.gatt.connect();
+  connectionStage('Step 3/4: BLE connected. Looking for the Button Service in the micro:bit firmware…');
   // The button service is essential; LED service is optional for diagnostics.
-  const buttons=await server.getPrimaryService(UUID.buttons);
+  let buttons;
+  try{buttons=await server.getPrimaryService(UUID.buttons);}catch(error){throw Error('GATT connected, but the Button Service is missing or inaccessible. Flash MakeCode firmware that calls bluetooth.startButtonService() and bluetooth.startLEDService(), then reset the micro:bit. Technical detail: '+error.message);}
   const index=[0,1,2,3].find(i=>!S.devices[i]?.device?.gatt?.connected||!S.devices[i]?.ready);
   if(index===undefined){status('All four slots are occupied.');return;}
   const info={device,matrix:null,ready:false};
@@ -84,22 +89,26 @@ $('connect').addEventListener('click',async()=>{
     subscribed++;
    }catch(err){log('Button characteristic unavailable: '+err.message);}
   }
-  if(!subscribed)throw Error('The micro:bit connected, but Button A/B notifications are unavailable. Check that its firmware enables the micro:bit Bluetooth Button Service.');
+  if(!subscribed)throw Error('Button service found but Button A/B notifications unavailable. Check micro:bit firmware and Bluetooth permissions.');
   info.ready=true;
+  connectionStage('Step 4/4: Button notifications active. Checking LED matrix…');
   updateConnections();
   log('Pod '+(index+1)+': Bluetooth button input ready');
   try{
    const leds=await server.getPrimaryService(UUID.leds);
    info.matrix=await leds.getCharacteristic(UUID.matrix);
+   connectionStage('Pod '+(index+1)+' ready: Button input ✓ · LED output ✓. Press A/B to verify input.');
    status('Pod '+(index+1)+' connected. Button input and LED output ready! Press button A or B to test.');
    log('Pod '+(index+1)+': LED matrix available');
   }catch(err){
    info.matrix=null;
+   connectionStage('Pod '+(index+1)+' ready: Button input ✓ · LED output unavailable. Firmware needs bluetooth.startLEDService().');
    status('Pod '+(index+1)+' connected for button input, but LED matrix service unavailable. Check firmware/MakeCode Bluetooth services.');
    log('Pod '+(index+1)+': LED service unavailable: '+err.message);
   }
  }catch(err){
   status('Connection incomplete: '+err.message);
+  connectionStage('Setup stopped: '+err.message);
   log('Bluetooth setup failed: '+err.message);
   if(device){for(let i=0;i<4;i++)if(S.devices[i]?.device?.id===device.id&&!S.devices[i]?.ready)S.devices[i]=null;updateConnections();}
  }finally{button.disabled=S.playing;}
