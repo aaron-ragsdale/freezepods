@@ -2,6 +2,14 @@
 
 The FreezePods website controls the micro:bit over Web Bluetooth. Each micro:bit must have compatible firmware installed **once**. Students can then use many Blockly and JavaScript games without changing that firmware.
 
+## Candidate compiled HEX (testing)
+
+The candidate file `microbit-bluettoth.hex` is **being tested and is not yet in this GitHub repository**. The documented source, [main.ts](./main.ts), is available now. Please don't rely on an unverified HEX as an official classroom release.
+
+If you have the candidate HEX locally, use the [official micro:bit WebUSB HEX Download Tool](https://microbit.org/tools/webusb-hex-download-tool/) to flash it, then check that both A/B button notifications and **Test LEDs** work in FreezePods. The WebUSB tool does not compile MakeCode source files.
+
+After a successful hardware test, the compiled HEX can be committed to this folder and linked directly from this README.
+
 ## Install once per micro:bit
 
 1. Open [Microsoft MakeCode](https://makecode.microbit.org/) and create a project.
