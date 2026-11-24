@@ -7,6 +7,44 @@ const S={playing:false,run:0,score:0,round:0,hits:0,last:null,target:-1,devices:
 const COLORS={red:'#ef5961',green:'#39d27a',blue:'#4f8cf7',yellow:'#f5c344',purple:'#ad73ed',orange:'#fa943b',white:'#ffffff',off:'#d7e1eb'};
 const UUID={buttons:'e95d9882-251d-470a-a062-fa1922dfa9a8',a:'e95dda90-251d-470a-a062-fa1922dfa9a8',b:'e95dda91-251d-470a-a062-fa1922dfa9a8',leds:'e95dd91d-251d-470a-a062-fa1922dfa9a8',matrix:'e95d7b77-251d-470a-a062-fa1922dfa9a8'};
 const pods=[...document.querySelectorAll('.pod')];let ws;
+
+let audioContext=null;
+let soundEnabled=true;
+function ensureAudio(){
+ if(!soundEnabled)return null;
+ const AudioCtor=window.AudioContext||window.webkitAudioContext;
+ if(!AudioCtor)return null;
+ if(!audioContext)audioContext=new AudioCtor();
+ if(audioContext.state==='suspended')audioContext.resume().catch(()=>{});
+ return audioContext;
+}
+function tone(freq,ms=140,kind='sine',at=0,volume=.095){
+ if(!soundEnabled)return;
+ try{
+  const ctx=ensureAudio();if(!ctx)return;
+  const osc=ctx.createOscillator(),gain=ctx.createGain();
+  const start=ctx.currentTime+at;
+  osc.type=kind;osc.frequency.setValueAtTime(freq,start);
+  gain.gain.setValueAtTime(.0001,start);
+  gain.gain.exponentialRampToValueAtTime(Math.max(.0001,volume),start+.015);
+  gain.gain.exponentialRampToValueAtTime(.0001,start+Math.max(.04,ms/1000));
+  osc.connect(gain).connect(ctx.destination);osc.start(start);osc.stop(start+Math.max(.06,ms/1000)+.03);
+ }catch(error){log('Audio unavailable: '+error.message);}
+}
+function sound(name){
+ switch(name){
+  case 'beep':tone(660,135);break;
+  case 'start':tone(523,110,'sine',0);tone(784,160,'sine',.12);break;
+  case 'success':tone(659,100,'sine',0);tone(880,210,'sine',.12);break;
+  case 'miss':tone(260,150,'triangle',0);tone(190,210,'triangle',.15);break;
+  case 'level':tone(440,90,'sine',0);tone(660,100,'sine',.12);tone(880,220,'sine',.25);break;
+  case 'tick':tone(470,75,'triangle');break;
+  case 'timeup':tone(245,260,'sawtooth',0,.055);break;
+  default:break;
+ }
+}
+function soundOn(){return soundEnabled;}
+
 function status(s){$('status').textContent=s;}
 function log(s){let li=document.createElement('li');li.textContent=s;$('log').prepend(li);while($('log').children.length>60)$('log').lastChild.remove();}
 function stats(){$('score').textContent=S.score;$('round').textContent=S.round;$('hits').textContent=S.hits;$('reaction').textContent=S.last?.ms==null?'—':Math.round(S.last.ms)+' ms';}
@@ -193,6 +231,12 @@ Blockly.defineBlocksWithJsonArray([
  {type:'pause_ms',message0:'wait %1 milliseconds',args0:[{type:'input_value',name:'MS',check:'Number'}],previousStatement:null,nextStatement:null,colour:205},
  {type:'game_message',message0:'show message %1',args0:[{type:'input_value',name:'TEXT'}],previousStatement:null,nextStatement:null,colour:35},
  {type:'game_stop',message0:'end game',previousStatement:null,nextStatement:null,colour:35},
+ {type:'sound_play',message0:'play sound %1',args0:[{type:'field_dropdown',name:'SOUND',options:[['beep','beep'],['start','start'],['success','success'],['miss','miss'],['level up','level'],['tick','tick'],['time up','timeup']]}],previousStatement:null,nextStatement:null,colour:315},
+ {type:'countdown',message0:'countdown from %1 seconds',args0:[{type:'field_number',name:'SECONDS',value:3,min:1,max:10,precision:1}],previousStatement:null,nextStatement:null,colour:315},
+ {type:'flash_pod',message0:'flash pod %1 %2 for %3 ms',args0:[{type:'input_value',name:'POD',check:'Number'},{type:'field_dropdown',name:'COLOR',options:[['green','green'],['red','red'],['blue','blue'],['yellow','yellow'],['purple','purple'],['white','white']]},{type:'field_number',name:'MS',value:400,min:100,max:5000,precision:100}],previousStatement:null,nextStatement:null,colour:145},
+ {type:'wait_random',message0:'wait random time between %1 and %2 ms',args0:[{type:'field_number',name:'MIN',value:500,min:0,max:30000,precision:100},{type:'field_number',name:'MAX',value:1500,min:0,max:30000,precision:100}],previousStatement:null,nextStatement:null,colour:205},
+ {type:'feedback_last',message0:'celebrate if correct, otherwise play miss',previousStatement:null,nextStatement:null,colour:315},
+
  {type:'sequence_random',message0:'random sequence of %1 pods',args0:[{type:'input_value',name:'LENGTH',check:'Number'}],output:'Array',colour:55},
  {type:'sequence_show',message0:'show sequence %1 each for %2 ms',args0:[{type:'input_value',name:'SEQUENCE',check:'Array'},{type:'field_number',name:'MS',value:600,min:100,max:4000,precision:100}],previousStatement:null,nextStatement:null,colour:55},
  {type:'sequence_check',message0:'player repeats sequence %1 (timeout %2 ms each)',args0:[{type:'input_value',name:'SEQUENCE',check:'Array'},{type:'field_number',name:'MS',value:3000,min:100,max:15000,precision:100}],previousStatement:null,nextStatement:null,colour:55},
@@ -202,8 +246,9 @@ Blockly.defineBlocksWithJsonArray([
 const block=t=>({kind:'block',type:t});
 const toolbox={kind:'categoryToolbox',contents:[
  {kind:'category',name:'Game',colour:'#bb7a31',contents:['game_start','repeat_rounds','game_message','game_stop'].map(block)},
- {kind:'category',name:'Pods & Colors',colour:'#329067',contents:['light_random','light_specific','pod_color','pods_all_color','pod_random','clear_pods'].map(block)},
- {kind:'category',name:'Inputs & Timing',colour:'#3777bd',contents:['wait_press','pod_wait_specific','pod_last_pressed','pod_correct','pause_ms'].map(block)},
+ {kind:'category',name:'Pods & Colors',colour:'#329067',contents:['light_random','light_specific','pod_color','flash_pod','pods_all_color','pod_random','clear_pods'].map(block)},
+ {kind:'category',name:'Inputs & Timing',colour:'#3777bd',contents:['wait_press','pod_wait_specific','pod_last_pressed','pod_correct','pause_ms','wait_random'].map(block)},
+ {kind:'category',name:'Sounds & Effects',colour:'#bb5292',contents:['sound_play','countdown','feedback_last'].map(block)},
  {kind:'category',name:'Scoring',colour:'#995cb7',contents:['score_response','score_change','score_value'].map(block)},
  {kind:'category',name:'Memory & Lists',colour:'#bb8741',contents:['sequence_random','sequence_show','sequence_check','list_push','list_match','lists_create_with','lists_length','lists_getIndex'].map(block)},
  {kind:'category',name:'Logic',colour:'#5386c4',contents:['controls_if','logic_compare','logic_operation','logic_negate','logic_boolean','logic_null'].map(block)},
@@ -286,6 +331,30 @@ async function perform(first,token,budget){
    case 'pause_ms':await sleepCancelable(v('MS'),token);break;
    case 'game_message':{const message=String(v('TEXT')).slice(0,160);status(message);log(message);break;}
    case 'game_stop':stop();break;
+
+   case 'sound_play':sound(f('SOUND'));break;
+   case 'feedback_last':sound(S.last?.correct?'success':'miss');break;
+   case 'countdown':{
+    const seconds=Math.max(1,Math.min(10,Math.floor(numeric(f('SECONDS'),3))));
+    for(let n=seconds;n>=1&&on(token);n--){
+     status('Get ready… '+n);
+     sound('tick');
+     await sleepCancelable(1000,token);
+    }
+    if(on(token)){sound('start');status('GO!');}
+    break;
+   }
+   case 'flash_pod':{
+    const i=Math.floor(numeric(v('POD')))-1;
+    requireConnected(i);if(i<0||i>3)throw Error('Pod numbers must be 1–4');
+    paint(i,f('COLOR'));await sleepCancelable(numeric(f('MS'),400),token);paint(i,'off');
+    break;
+   }
+   case 'wait_random':{
+    const lo=Math.max(0,Math.min(30000,numeric(f('MIN'),500))),hi=Math.max(lo,Math.min(30000,numeric(f('MAX'),1500)));
+    await sleepCancelable(lo+Math.floor(Math.random()*(hi-lo+1)),token);break;
+   }
+
    case 'sequence_show':{const seq=v('SEQUENCE');if(!Array.isArray(seq))throw Error('Show sequence needs a list.');status('Remember the sequence!');for(const number of seq.slice(0,20)){if(!on(token))break;clear();paint(Math.floor(numeric(number))-1,'blue');await sleepCancelable(numeric(f('MS'),600),token);clear();await sleepCancelable(160,token);}break;}
    case 'sequence_check':{const seq=v('SEQUENCE');if(!Array.isArray(seq))throw Error('Check sequence needs a list.');status('Repeat the sequence in order!');let correct=true;let elapsed=0;for(const number of seq.slice(0,20)){const press=await receive(numeric(f('MS'),3000),token);if(!on(token))break;if(!press||press.index+1!==Number(number)){correct=false;break;}elapsed+=press.ms;paint(press.index,'green');await sleepCancelable(110,token);clear();}if(on(token)){S.last={index:-1,correct,ms:correct?elapsed:null};stats();log(correct?'Sequence correct!':'Sequence incorrect or timed out');}break;}
    case 'list_push':{const arr=v('LIST');if(!Array.isArray(arr))throw Error('Add to list needs a list variable.');if(arr.length>=100)throw Error('List limit is 100 items.');arr.push(v('ITEM'));break;}
@@ -298,6 +367,7 @@ function finish(){clear();S.playing=false;S.pending=null;$('play').disabled=fals
 function stop(){if(!S.playing)return;S.playing=false;S.run++;if(S.pending){const r=S.pending;S.pending=null;r(null);}finish();status('Game stopped.');log('Stopped');}
 $('stop').addEventListener('click',stop);
 $('play').addEventListener('click',async()=>{
+ ensureAudio();
  if(S.playing)return;
  if(window.FreezePodsEditorMode==='javascript')return;
  const starts=ws.getTopBlocks(true).filter(b=>b.type==='game_start');
@@ -313,6 +383,7 @@ $('play').addEventListener('click',async()=>{
 // Student code cannot directly access the DOM, device objects or Bluetooth handles.
 window.FreezePodsBridge={
  start(){
+  ensureAudio();
   if(S.playing)return null;
   if(S.mode==='hardware'&&connectedIndices().length===0){status('Connect at least one micro:bit first, or use Simulation.');return null;}
   S.playing=true;const token=++S.run;S.score=0;S.round=0;S.hits=0;S.last=null;S.vars.clear();stats();
@@ -333,6 +404,7 @@ window.FreezePodsBridge={
    case 'score':S.score+=Math.max(-10000,Math.min(10000,num(args[0])));stats();return S.score;
    case 'round':S.round++;stats();return S.round;
    case 'message':{const t=String(args[0]??'').slice(0,160);status(t);log(t);return true;}
+   case 'sound':sound(String(args[0]||'beep'));return true;
    case 'state':return {score:S.score,round:S.round,hits:S.hits};
    default:throw Error('Unsupported game command');
   }
@@ -346,5 +418,6 @@ window.FreezePodsBridge={
  stop(){stop();}
 };
 
+const mute=$('sound-toggle');if(mute){mute.checked=true;mute.addEventListener('change',()=>{soundEnabled=mute.checked;if(soundEnabled)ensureAudio();});}
 switchMode();stats();
 })();
