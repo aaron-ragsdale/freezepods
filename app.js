@@ -6,38 +6,26 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
 const S={playing:false,run:0,score:0,round:0,hits:0,last:null,target:-1,devices:[],colors:['off','off','off','off'],mode:'simulation',pending:null,vars:new Map()};
 const COLORS={red:'#ef5961',green:'#39d27a',blue:'#4f8cf7',yellow:'#f5c344',purple:'#ad73ed',orange:'#fa943b',white:'#ffffff',off:'#d7e1eb'};
 
-const PIXEL_COUNT=12;
-const rgbValues=Array.from({length:4},()=>Array(PIXEL_COUNT).fill('#202b3c'));
-let rgbBrightness=80;
-let rgbHardwareWarned=false;
 let duelTotals=[0,0];
-function renderPixels(i){
- const holder=pods[i]?.querySelector('.pixel-strip');if(!holder)return;
- if(!holder.children.length){
-  for(let p=0;p<PIXEL_COUNT;p++){const item=document.createElement('span');item.className='pixel';holder.appendChild(item);}
- }
- [...holder.children].forEach((item,p)=>{const hex=rgbValues[i][p];item.style.background=hex;item.style.opacity=hex==='#202b3c'?'0.3':String(Math.max(.12,rgbBrightness/100));item.style.boxShadow=hex==='#202b3c'?'none':'0 0 7px '+hex;});
-}
-function rgbStatus(){
- if(S.mode==='hardware'&&!rgbHardwareWarned){rgbHardwareWarned=true;log('Addressable RGB strip blocks are preview-only in hardware mode. Standard micro:bit BLE LED service cannot control NeoPixels. A compatible strip adapter firmware is required.');status('RGB strip output is simulated only. The onboard micro:bit 5×5 LEDs still work normally.');}
-}
-function stripFill(i,color){
- if(i<0||i>3)throw Error('Pod number must be 1–4');
- rgbValues[i].fill(color==='off'?'#202b3c':COLORS[color]||'#202b3c');renderPixels(i);rgbStatus();
-}
-function stripPixel(i,p,color){
- if(i<0||i>3)throw Error('Pod number must be 1–4');
- if(p<0||p>=PIXEL_COUNT)throw Error('Pixel number must be 1–'+PIXEL_COUNT);
- rgbValues[i][p]=color==='off'?'#202b3c':COLORS[color]||'#202b3c';renderPixels(i);rgbStatus();
-}
-function stripRainbow(i){
- if(i<0||i>3)throw Error('Pod number must be 1–4');
- for(let p=0;p<PIXEL_COUNT;p++){const hue=p*360/PIXEL_COUNT;rgbValues[i][p]='hsl('+hue+' 95% 55%)';}
- renderPixels(i);rgbStatus();
-}
 function duelScores(){const a=$('player1-score'),b=$('player2-score');if(a)a.textContent=duelTotals[0];if(b)b.textContent=duelTotals[1];}
-
-const UUID={buttons:'e95d9882-251d-470a-a062-fa1922dfa9a8',a:'e95dda90-251d-470a-a062-fa1922dfa9a8',b:'e95dda91-251d-470a-a062-fa1922dfa9a8',leds:'e95dd91d-251d-470a-a062-fa1922dfa9a8',matrix:'e95d7b77-251d-470a-a062-fa1922dfa9a8'};
+async function digitalWrite(index,pin,high){
+ if(index<0||index>3)throw Error('Pod must be 1–4.');
+ if(![0,1,2].includes(pin))throw Error('Choose P0, P1 or P2.');
+ if(S.mode==='simulation'){status('Virtual pod '+(index+1)+' P'+pin+' → '+(high?'HIGH':'LOW'));log('Preview: Pod '+(index+1)+' P'+pin+' '+(high?'HIGH':'LOW'));return;}
+ requireConnected(index);
+ const info=S.devices[index];
+ if(!info.pinData)throw Error('Bluetooth GPIO not available. Reflash this micro:bit with bluetooth.startIOPinService().');
+ info.pinWrites=(info.pinWrites||Promise.resolve()).catch(()=>{}).then(async()=>{
+  if(info!==S.devices[index]||!info.device.gatt.connected)throw Error('Device disconnected.');
+  const value=new Uint8Array([pin,high?1:0]);
+  if(info.pinData.properties.write&&info.pinData.writeValueWithResponse)await info.pinData.writeValueWithResponse(value);
+  else if(info.pinData.properties.writeWithoutResponse&&info.pinData.writeValueWithoutResponse)await info.pinData.writeValueWithoutResponse(value);
+  else await info.pinData.writeValue(value);
+ });
+ await info.pinWrites;
+ log('Pod '+(index+1)+' P'+pin+' = '+(high?'HIGH':'LOW'));
+}
+const UUID={buttons:'e95d9882-251d-470a-a062-fa1922dfa9a8',a:'e95dda90-251d-470a-a062-fa1922dfa9a8',b:'e95dda91-251d-470a-a062-fa1922dfa9a8',leds:'e95dd91d-251d-470a-a062-fa1922dfa9a8',matrix:'e95d7b77-251d-470a-a062-fa1922dfa9a8',io:'e95d127b-251d-470a-a062-fa1922dfa9a8',pinData:'e95d8d00-251d-470a-a062-fa1922dfa9a8'};
 const pods=[...document.querySelectorAll('.pod')];let ws;
 
 let audioContext=null;
@@ -146,7 +134,7 @@ $('connect').addEventListener('click',async()=>{
  const button=$('connect');button.disabled=true;let device=null;
  try{
   connectionStage('Step 1/4: Waiting for Chrome device selection…');status('Choose a BBC micro:bit in Chrome’s Bluetooth device picker…');
-  device=await navigator.bluetooth.requestDevice({filters:[{namePrefix:'BBC micro:bit'}],optionalServices:[UUID.buttons,UUID.leds]});
+  device=await navigator.bluetooth.requestDevice({filters:[{namePrefix:'BBC micro:bit'}],optionalServices:[UUID.buttons,UUID.leds,UUID.io]});
   connectionStage('Step 2/4: Chrome selected '+(device.name||'micro:bit')+'. Connecting to its GATT server…');
   const existing=S.devices.findIndex(d=>d?.device?.id===device.id&&d.device.gatt.connected&&d.ready);
   if(existing!==-1){status('That micro:bit is already ready as Pod '+(existing+1)+'.');return;}
@@ -158,7 +146,7 @@ $('connect').addEventListener('click',async()=>{
   try{buttons=await server.getPrimaryService(UUID.buttons);}catch(error){throw Error('GATT connected, but the Button Service is missing or inaccessible. Flash MakeCode firmware that calls bluetooth.startButtonService() and bluetooth.startLEDService(), then reset the micro:bit. Technical detail: '+error.message);}
   const index=[0,1,2,3].find(i=>!S.devices[i]?.device?.gatt?.connected||!S.devices[i]?.ready);
   if(index===undefined){status('All four slots are occupied.');return;}
-  const info={device,matrix:null,ready:false};
+  const info={device,matrix:null,pinData:null,ready:false};
   S.devices[index]=info;
   device.addEventListener('gattserverdisconnected',()=>{
    if(S.devices[index]?.device!==device)return;
@@ -200,6 +188,11 @@ $('connect').addEventListener('click',async()=>{
    status('Pod '+(index+1)+' connected for button input, but LED matrix service unavailable. Check firmware/MakeCode Bluetooth services.');
    log('Pod '+(index+1)+': LED service unavailable: '+err.message);
   }
+  try{
+   const service=await server.getPrimaryService(UUID.io);
+   info.pinData=await service.getCharacteristic(UUID.pinData);
+   log('Pod '+(index+1)+': GPIO P0, P1 and P2 available.');
+  }catch(err){info.pinData=null;log('GPIO not enabled in firmware: '+err.message);}
  }catch(err){
   status('Connection incomplete: '+err.message);
   connectionStage('Setup stopped: '+err.message);
@@ -242,16 +235,13 @@ Blockly.defineBlocksWithJsonArray([
  {type:'speed_game',message0:'Speed Challenge: %1 seconds, + %2 for hit, %3 for miss',args0:[{type:'field_number',name:'SECONDS',value:20,min:5,max:90,precision:1},{type:'field_number',name:'RIGHT',value:10,min:0,max:100},{type:'field_number',name:'WRONG',value:-5,min:-100,max:0}],previousStatement:null,nextStatement:null,colour:35,tooltip:'Keep hitting randomly lit pods until the timer ends.'},
  {type:'simon_game',message0:'Simon Says: %1 levels, start with %2 flashes',args0:[{type:'field_number',name:'LEVELS',value:5,min:1,max:12,precision:1},{type:'field_number',name:'START',value:1,min:1,max:6,precision:1}],previousStatement:null,nextStatement:null,colour:55,tooltip:'Remember an increasing sequence. One more pod is added after each level.'},
  {type:'duel_game',message0:'Two-player duel: %1 rounds, + %2 to fastest player',args0:[{type:'field_number',name:'ROUNDS',value:10,min:1,max:30,precision:1},{type:'field_number',name:'POINTS',value:10,min:1,max:100,precision:1}],previousStatement:null,nextStatement:null,colour:35,tooltip:'Both players see green; the first to press earns the points.'},
- {type:'strip_fill',message0:'RGB strip: fill pod %1 with %2',args0:[{type:'input_value',name:'POD',check:'Number'},{type:'field_dropdown',name:'COLOR',options:[['red','red'],['green','green'],['blue','blue'],['yellow','yellow'],['purple','purple'],['orange','orange'],['white','white'],['off','off']]}],previousStatement:null,nextStatement:null,colour:165,tooltip:'Shows 12 addressable RGB pixels in simulation; requires future external hardware adapter for real strips.'},
- {type:'strip_pixel',message0:'RGB strip: pod %1 pixel %2 color %3',args0:[{type:'input_value',name:'POD',check:'Number'},{type:'input_value',name:'PIXEL',check:'Number'},{type:'field_dropdown',name:'COLOR',options:[['red','red'],['green','green'],['blue','blue'],['yellow','yellow'],['purple','purple'],['orange','orange'],['white','white'],['off','off']]}],previousStatement:null,nextStatement:null,colour:165},
- {type:'strip_rainbow',message0:'RGB strip: rainbow on pod %1',args0:[{type:'input_value',name:'POD',check:'Number'}],previousStatement:null,nextStatement:null,colour:165},
- {type:'strip_brightness',message0:'RGB strip: set brightness %1 %',args0:[{type:'field_number',name:'BRIGHT',value:80,min:0,max:100,precision:5}],previousStatement:null,nextStatement:null,colour:165},
+ {type:'gpio_write',message0:'digital output: Pod %1 pin %2 %3',args0:[{type:'input_value',name:'POD',check:'Number'},{type:'field_dropdown',name:'PIN',options:[['P0','0'],['P1','1'],['P2','2']]},{type:'field_dropdown',name:'STATE',options:[['HIGH','1'],['LOW','0']]}],previousStatement:null,nextStatement:null,colour:165,tooltip:'Use Bluetooth I/O Pin Service for digital HIGH/LOW. Does not drive addressable LEDs.'},
 ]);
 const block=t=>({kind:'block',type:t});
 const toolbox={kind:'categoryToolbox',contents:[
  {kind:'category',name:'Game',colour:'#bb7a31',contents:['game_start','repeat_rounds','speed_game','duel_game','game_message','game_stop'].map(block)},
  {kind:'category',name:'Pods & Colors',colour:'#329067',contents:['light_random','light_specific','pod_color','flash_pod','pods_all_color','pod_random','clear_pods'].map(block)},
- {kind:'category',name:'RGB LED Strip (preview)',colour:'#4b9caa',contents:['strip_fill','strip_pixel','strip_rainbow','strip_brightness'].map(block)},
+ {kind:'category',name:'Output Pins',colour:'#4b9caa',contents:['gpio_write'].map(block)},
  {kind:'category',name:'Inputs & Timing',colour:'#3777bd',contents:['wait_press','pod_wait_specific','pod_last_pressed','pod_correct','pause_ms','wait_random'].map(block)},
  {kind:'category',name:'Sounds & Effects',colour:'#bb5292',contents:['sound_play','countdown','feedback_last'].map(block)},
  {kind:'category',name:'Scoring',colour:'#995cb7',contents:['score_response','score_change','score_value'].map(block)},
@@ -374,10 +364,7 @@ async function perform(first,token,budget){
    }
 
 
-   case 'strip_fill':{const i=Math.floor(numeric(v('POD')))-1;stripFill(i,f('COLOR'));break;}
-   case 'strip_pixel':{const i=Math.floor(numeric(v('POD')))-1,p=Math.floor(numeric(v('PIXEL')))-1;stripPixel(i,p,f('COLOR'));break;}
-   case 'strip_rainbow':{const i=Math.floor(numeric(v('POD')))-1;stripRainbow(i);break;}
-   case 'strip_brightness':rgbBrightness=Math.max(0,Math.min(100,numeric(f('BRIGHT'),80)));for(let i=0;i<4;i++)renderPixels(i);rgbStatus();break;
+   case 'gpio_write':await digitalWrite(Math.floor(numeric(v('POD')))-1,Number(f('PIN')),f('STATE')==='1');break;
    case 'speed_game':{
     const seconds=Math.max(5,Math.min(90,numeric(f('SECONDS'),20)));
     const deadline=performance.now()+seconds*1000;
@@ -506,10 +493,7 @@ window.FreezePodsBridge={
    case 'round':S.round++;stats();return S.round;
    case 'message':{const t=String(args[0]??'').slice(0,160);status(t);log(t);return true;}
    case 'sound':sound(String(args[0]||'beep'));return true;
-   case 'rgbFill':stripFill(Math.floor(num(args[0]))-1,String(args[1]||'green'));return true;
-   case 'rgbPixel':stripPixel(Math.floor(num(args[0]))-1,Math.floor(num(args[1]))-1,String(args[2]||'green'));return true;
-   case 'rgbRainbow':stripRainbow(Math.floor(num(args[0]))-1);return true;
-   case 'rgbBrightness':rgbBrightness=Math.max(0,Math.min(100,num(args[0],80)));for(let i=0;i<4;i++)renderPixels(i);rgbStatus();return true;
+   case 'digitalWrite':await digitalWrite(Math.floor(num(args[0]))-1,Math.floor(num(args[1])),args[2]===true||args[2]===1);return true;
    case 'state':return {score:S.score,round:S.round,hits:S.hits};
    default:throw Error('Unsupported game command');
   }
@@ -524,6 +508,5 @@ window.FreezePodsBridge={
 };
 
 const mute=$('sound-toggle');if(mute){mute.checked=true;mute.addEventListener('change',()=>{soundEnabled=mute.checked;if(soundEnabled)ensureAudio();});}
-for(let i=0;i<4;i++)renderPixels(i);
 switchMode();stats();
 })();
