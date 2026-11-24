@@ -1,4 +1,4 @@
-# FreezePods Game Lab (v3: Blockly + JavaScript)
+# FreezePods Game Lab (Blockly + JavaScript)
 
 A free, static GitHub Pages website for students to invent physical reaction and memory games with either Google Blockly or a JavaScript editor. No React build, npm install, server, firmware compiler, or account is needed for **simulation**.
 
@@ -26,7 +26,7 @@ for (let round = 0; round < 5; round++) {
 }
 ```
 
-Supported methods: `pods.light(podNumber, color)`, `pods.all(color)`, `pods.off()`, `pods.wait(milliseconds)`, `pods.waitPress(timeoutMs)`, `pods.randomPod()`, `pods.addScore(points)`, `pods.nextRound()`, `pods.message(text)`, `pods.getState()`.
+Supported methods: `pods.sound(effectName)`, `pods.light(podNumber, color)`, `pods.all(color)`, `pods.off()`, `pods.wait(milliseconds)`, `pods.waitPress(timeoutMs)`, `pods.randomPod()`, `pods.addScore(points)`, `pods.nextRound()`, `pods.message(text)`, `pods.getState()`.
 
 `pods.waitPress()` returns `null` on timeout or an object like `{pod:2,ms:450,correct:true}`. Pod numbers are **1 to 4**. The simulated pods support red, green, blue, yellow, purple, orange, white, and off.
 
@@ -35,6 +35,29 @@ Supported methods: `pods.light(podNumber, color)`, `pods.all(color)`, `pods.off(
 Student scripts execute inside a `sandbox="allow-scripts"` iframe without same-origin permission and with a restrictive Content Security Policy. Only selected commands are forwarded to the parent through a validated message channel; scripts do not receive device objects or direct hardware APIs. The iframe is discarded when the game stops and a two-minute game limit is enforced for **cooperative/asynchronous programs**.
 
 **This is an educational sandbox, not a hardened untrusted-code service.** A synchronous infinite loop can still freeze the browser tab, and the text mode is best used for student-written or reviewed code rather than arbitrary downloaded scripts. Use Blockly for less experienced users.
+
+## Sounds, countdowns, and game effects
+
+FreezePods now includes more game-design blocks under **Sounds & Effects**, **Pods & Colors**, and **Inputs & Timing**:
+
+- **Play sound:** beep, start, success, miss, level up, tick, or time up.
+- **Countdown:** display a 3–2–1 style countdown and play ticks before the game begins. Choose 1–10 seconds.
+- **Celebrate if correct:** play success or miss feedback based on the last response.
+- **Flash pod:** light an individual pod for a chosen duration, then turn it off.
+- **Random wait:** pause for a random interval between two millisecond values, useful for unpredictable reaction games.
+
+**Game sounds play through the student’s computer or phone browser, not through the micro:bit.** They use the browser Web Audio API and do not require audio files, additional hardware, or firmware changes. The player can toggle **Game sounds** off in the play settings. Audio may require a click on Play to activate, and a muted device will remain silent.
+
+In the **JavaScript** editor, use `await pods.sound('success')` to play an effect. Other sound names are `beep`, `start`, `miss`, `level`, `tick`, and `timeup`. For example:
+
+```js
+await pods.sound('start');
+const target = await pods.randomPod();
+await pods.light(target, 'green');
+const press = await pods.waitPress(3000);
+await pods.sound(press && press.pod === target ? 'success' : 'miss');
+await pods.off();
+```
 
 ## Features
 
@@ -112,7 +135,7 @@ A compiled firmware file named `microbit-bluettoth.hex` is currently being teste
 
 If you already have a compiled `.hex` file, you can install it onto a micro:bit using the official [micro:bit WebUSB HEX Download Tool](https://microbit.org/tools/webusb-hex-download-tool/). Connect your micro:bit by USB, select the HEX file, and follow the tool's instructions. This tool **flashes** compiled firmware; it does not compile the TypeScript source.
 
-After flashing, reset the board once, connect it from the [FreezePods website](https://aaron-ragsdale.github.io/freezepods/) using **micro:bit Bluetooth (test mode)**, and check both the button press diagnostics and **Test LEDs (2 sec)**. Once the candidate firmware passes these checks, it can be added to the `firmware/` folder with a direct download link.
+After flashing, reset the board once, connect it from the [FreezePods website](https://aaron-ragsdale.github.io/freezepods/) using **micro:bit Bluetooth (test mode)**, and check the game lights and button presses. Once the candidate firmware passes these checks, it can be added to the `firmware/` folder with a direct download link.
 
 See the [full firmware setup instructions](firmware/README.md).
 
@@ -120,12 +143,11 @@ See the [full firmware setup instructions](firmware/README.md).
 
 Physical micro:bit LEDs use the built-in monochrome 5×5 display, not the simulation's RGB colors.
 
-1. Connect at least one micro:bit in Bluetooth test mode.
-2. Click **Test LEDs (2 sec)** in the connection panel.
-3. FreezePods will write an OFF pattern, then an ON pattern, then OFF again to each selected connected device. Check whether its physical LEDs light up.
-4. Open **See game events** to inspect LED write errors and optional characteristic readback.
+1. Connect at least one micro:bit in **Physical micro:bits** mode.
+2. Choose the reaction game and press **Play game** to verify the LEDs illuminate when selected.
+3. Press button A or B to respond. Open **See game events** if any errors appear.
 
-The website serializes writes per device to avoid overlapping Bluetooth LED commands.
+The website serializes writes per device to avoid overlapping Bluetooth LED commands. The one-off diagnostic LED test button was removed from the main student interface.
 
 The repository includes a reusable MakeCode program at **[firmware/main.ts](firmware/main.ts)** and detailed [one-time flashing instructions](firmware/README.md). Once you have compiled a `.hex` file in MakeCode, you can flash it to additional micro:bits with the official [micro:bit WebUSB HEX Download Tool](https://microbit.org/tools/webusb-hex-download-tool/). The WebUSB tool flashes an existing HEX file; it does not compile the source. That program starts the Bluetooth Button and LED services, then leaves the display clear rather than showing a permanent heart. We have included the firmware **source**, not a compiled HEX; compile and flash it through MakeCode. Once flashed, the same firmware is used by all student games.
 
