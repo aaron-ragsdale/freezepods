@@ -36,6 +36,44 @@ Student scripts execute inside a `sandbox="allow-scripts"` iframe without same-o
 
 **This is an educational sandbox, not a hardened untrusted-code service.** A synchronous infinite loop can still freeze the browser tab, and the text mode is best used for student-written or reviewed code rather than arbitrary downloaded scripts. Use Blockly for less experienced users.
 
+## More game templates
+
+Use the starter buttons above the Blockly editor:
+
+| Game | What students can change |
+|---|---|
+| **Reaction Game** | Number of rounds, scoring, timeout, target selection |
+| **Memory Game** | Sequence length, replay speed, scoring |
+| **Speed Challenge** | Total duration, points for hits and misses; score as many as possible before time runs out |
+| **Simon Says** | A growing sequence with configurable levels and starting difficulty |
+| **Two-Player Duel** | Compete with Pod 1 versus Pod 2. Customize the round count and awarded points |
+
+A duel needs **at least two connected micro:bits** for physical gameplay. It works with the four virtual pods in Simulation. Player scores are shown separately.
+
+These starter games use high-level Blockly game blocks that students can inspect, change, and combine with other statements. They are not yet fully decomposed into basic control-flow blocks.
+
+## RGB and digitally addressable LED output
+
+There is a new **RGB LED Strip (preview)** toolbox category. It includes:
+
+- Fill a pod's RGB strip with a color
+- Set an individual pixel color (pixels **1–12**)
+- Show a rainbow across the strip
+- Set the strip brightness (0–100%)
+
+Each virtual pod displays a simulated 12-pixel strip, and these effects also work through JavaScript methods `await pods.rgbFill(1, 'blue')`, `await pods.rgbPixel(1, 4, 'red')`, `await pods.rgbRainbow(1)`, and `await pods.rgbBrightness(60)`.
+
+**Important:** The current physical micro:bit Bluetooth firmware only supports its built-in **monochrome 5×5 LED matrix**. It does **not** drive external addressable LEDs. RGB strip commands currently control the browser preview only; in physical micro:bit mode, the site logs this limitation rather than implying it sent RGB commands to the board.
+
+### Connecting real NeoPixel / WS2812 strips later
+
+We will need to add a physical output adapter, such as:
+
+1. **micro:bit + NeoPixel extension:** firmware listens for custom Bluetooth UART commands and uses the NeoPixel extension to drive a strip from a configured digital pin.
+2. **ESP32 + WS2812/NeoPixel strip:** a separate BLE or Wi-Fi protocol and firmware adapter that accepts pod, pixel, color, and brightness commands.
+
+In either case, **power, ground, data-line pin, LED count, and power supply** must be matched to the strip. Larger WS2812 strips should not be powered directly from a micro:bit GPIO pin. A hardware adapter is not yet implemented here, and the RGB preview is intended for experimenting with designs before a device is connected.
+
 ## Sounds, countdowns, and game effects
 
 FreezePods now includes more game-design blocks under **Sounds & Effects**, **Pods & Colors**, and **Inputs & Timing**:
@@ -61,7 +99,7 @@ await pods.off();
 
 ## Features
 
-- **Starter games:** Reaction Game and Memory Game buttons at the top of the Blockly workspace.
+- **Starter games:** Reaction Game, Memory Game, Speed Challenge, Simon Says, and Two-Player Duel.
 - **Programming concepts:** variables, basic math, comparisons, Boolean logic, if/else, repeat and while/until loops.
 - **Lists & memory:** create lists, read list items, generate random sequences, show them on pods, and check players' presses.
 - **Pod controls:** random or specific target, change pod color, clear pods.
