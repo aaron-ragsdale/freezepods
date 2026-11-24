@@ -2,6 +2,10 @@
 
 A free, static GitHub Pages website for students to invent physical reaction and memory games with either Google Blockly or a JavaScript editor. No React build, npm install, server, firmware compiler, or account is needed for **simulation**.
 
+## Build physical FreezePods
+
+[3D-printable enclosure, CAD files, and illustrated assembly guide](enclosure/README.md). The V2 housing uses a snap-fit lid and ring pusher without extra fasteners.
+
 ## Choose how to program
 
 Use the **Blocks / JavaScript** tabs in the editor. They are separate authoring modes, not automatic two-way translation. Switching modes preserves the Blockly workspace and the JavaScript draft independently.
