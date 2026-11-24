@@ -14,3 +14,5 @@
 .js-editor-panel .hint{padding:2px 0;line-height:1.7}
 .js-editor-panel code{background:#eef2f7;padding:2px 4px;border-radius:4px;color:#235f65}
 @media(max-width:750px){.editor-tabs{padding:12px 14px}.js-editor-panel{padding:0 14px 18px}.js-editor-toolbar{align-items:flex-start}.js-editor-toolbar .toolbar{gap:5px}#js-code{font-size:12px}}
+
+.device-diagnostics{display:block;color:#5c6f83;font-size:11px;line-height:1.5;max-width:275px}.pod.disconnected{opacity:.55;cursor:default}.pod.disconnected .led{filter:grayscale(1)}
