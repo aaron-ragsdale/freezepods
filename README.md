@@ -4,7 +4,7 @@ A free, static GitHub Pages website for students to invent physical reaction and
 
 ## Build physical FreezePods
 
-[3D-printable enclosure, CAD files, and illustrated assembly guide](enclosure/README.md). The V2 housing uses a snap-fit lid and ring pusher without extra fasteners.
+[3D-printable enclosure, CAD files, and illustrated assembly guide](enclosure/README.md). The housing uses a simple press-fit lid and interchangeable 58 mm or 80 mm free-sliding ring pushers without extra fasteners.
 
 ## Choose how to program
 
