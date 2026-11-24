@@ -26,7 +26,7 @@ for (let round = 0; round < 5; round++) {
 }
 ```
 
-Supported methods: `pods.sound(effectName)`, `pods.light(podNumber, color)`, `pods.all(color)`, `pods.off()`, `pods.wait(milliseconds)`, `pods.waitPress(timeoutMs)`, `pods.randomPod()`, `pods.addScore(points)`, `pods.nextRound()`, `pods.message(text)`, `pods.getState()`.
+Supported methods: `pods.digitalWrite(podNumber, pin, isHigh)`, `pods.sensor(podNumber, sensorName)`, `pods.pinRead(podNumber, pin, analog)`, `pods.sound(effectName)`, `pods.light(podNumber, color)`, `pods.all(color)`, `pods.off()`, `pods.wait(milliseconds)`, `pods.waitPress(timeoutMs)`, `pods.randomPod()`, `pods.addScore(points)`, `pods.nextRound()`, `pods.message(text)`, `pods.getState()`.
 
 `pods.waitPress()` returns `null` on timeout or an object like `{pod:2,ms:450,correct:true}`. Pod numbers are **1 to 4**. The simulated pods support red, green, blue, yellow, purple, orange, white, and off.
 
@@ -52,38 +52,25 @@ A duel needs **at least two connected micro:bits** for physical gameplay. It wor
 
 These starter games use high-level Blockly game blocks that students can inspect, change, and combine with other statements. They are not yet fully decomposed into basic control-flow blocks.
 
-## Digital output pins
+## Pod inputs and outputs
 
-The **Output Pins** Blockly category provides a digital HIGH/LOW output block, plus experimental PWM and NeoPixel commands:
+FreezePods focuses on creating games that use 1–4 micro:bits as **pods**. Students can program button reactions, patterns on the built-in 5×5 LED display, timing, scoring, and memory challenges.
 
-`digital output: Pod [number] pin [P0/P1/P2] [HIGH/LOW]`
+The main Blockly categories are **Games**, **Pod Inputs**, **Pod Outputs**, **Timing & Sounds**, **Scoring**, **Memory & Lists**, **Logic**, **Loops**, **Math**, **Text**, and **Variables**.
 
-Select a pod and output pin, then use this block to turn ordinary GPIO-controlled devices on and off (for example, an LED with a suitable resistor, or a driver module). In JavaScript use `await pods.digitalWrite(1, 0, true)` for Pod 1 / P0 / HIGH and `await pods.digitalWrite(1, 0, false)` for LOW.
+**Pod Inputs:** Wait for a press, check whether the response matched the target, optionally sample a simple digital/analog pin input or a built-in motion/temperature sensor into a variable. The extra inputs are for small game variations and are not a complete micro:bit programming environment.
 
-In simulation the action is logged as a preview. In **Physical micro:bits** mode it sends actual GPIO commands via the micro:bit **Bluetooth I/O Pin Service**. This requires firmware with `bluetooth.startIOPinService()` enabled. The firmware source in [firmware/main.ts](firmware/main.ts) has been updated, but **the earlier compiled HEX is not automatically updated**. Recompile in MakeCode before testing physical GPIO.
+**Pod Outputs:** Light a random or chosen pod, flash a pod, clear displays, and optionally set a GPIO pin HIGH/LOW. The micro:bit's 5×5 LEDs are monochrome; the simulation has colors for clarity.
 
-### Addressable LEDs
+**Sound:** Game sound effects play through the browser. The current simple micro:bit firmware does not play sounds through the V2 speaker.
 
-Your proposed wiring is broadly correct: micro:bit GPIO to the WS2812/NeoPixel DIN pin, plus an appropriately rated external 5V power supply and shared ground between the micro:bit and LED supply. A 3.3V-to-5V logic-level shifter is recommended for reliable data when using 5V addressable LEDs. Do not power a 5V strip from a micro:bit output pin.
+**Physical pins:** GPIO requires the Bluetooth I/O Pin Service in the compiled HEX. GPIO and sensor features are experimental until verified on hardware. The website intentionally does not offer NeoPixel, PWM, UART, or micro:bit speaker programming blocks. For full hardware programming, use [Microsoft MakeCode](https://makecode.microbit.org/).
 
-**Digital HIGH/LOW alone cannot control addressable RGB LEDs.** These pixels require a precisely timed serial waveform. To drive them, add the MakeCode NeoPixel library/extension to the micro:bit firmware and a compatible Bluetooth command protocol, so the micro:bit generates the timing locally. The expanded experimental micro:bit V2 firmware now includes a local NeoPixel command handler, but it has not yet been compiled or tested on physical hardware.
+### Simple firmware setup
 
-## Expanded micro:bit hardware controls (experimental V2 profile)
+The current source at [firmware/main.ts](firmware/main.ts) enables Bluetooth Button, LED, I/O Pin, accelerometer, compass, and temperature services, without Radio. Students do not need to install or modify firmware for each new game. The source is not itself a compiled HEX and does not change a HEX already flashed onto a board.
 
-The firmware source at [firmware/main.ts](firmware/main.ts) now enables these Bluetooth services: **Buttons**, **LED Matrix**, **I/O Pins**, **Accelerometer**, **Magnetometer**, **Temperature**, and **UART**. **Radio is not enabled.** The UART channel accepts short commands for the V2 speaker, custom display icons, PWM outputs, and an optional 12-LED NeoPixel strip. This is a **source-level integration, not a compiled or hardware-tested HEX**. Compile in MakeCode with both the Bluetooth and NeoPixel extensions. On micro:bit V1, this many BLE services and extensions may exceed memory; the full profile targets V2.
-
-| Blockly category | New capabilities | Hardware notes |
-|---|---|---|
-| Sensors | Sample accelerometer X/Y/Z (milli-g), heading, temperature into a variable | Requires BLE sensor services. Compass requires calibration for a meaningful heading. |
-| Inputs & Timing | Sample P0/P2 digital or analog input into a variable | BLE I/O pin readback is experimental and not yet physically verified. |
-| Output Pins | Digital HIGH/LOW, PWM 0–1023, 12-pixel NeoPixel commands, and display icons | P1 reserved as NeoPixel data output; use P0 or P2 for external GPIO/PWM. |
-| Sounds & Effects | Play a specific tone and set micro:bit speaker volume | Through BLE UART; built-in speaker is V2 only. Browser sounds still work independently. |
-
-JavaScript commands include `await pods.sensor(1, 'x')`, `await pods.pinRead(1, 0, true)`, `await pods.tone(1, 440, 200)`, `await pods.volume(1, 128)`, `await pods.pwm(1, 0, 512)`, `await pods.neoFill(1, 255, 0, 0)`, `await pods.neoPixel(1, 3, 0, 255, 0)`, `await pods.neoBrightness(1, 60)`, `await pods.neoClear(1)`, and `await pods.deviceIcon(1, 1)`.
-
-In Simulation mode, sensor values and hardware writes are placeholders for students to explore programming. They are **not real sensor measurements**. When a physical service is absent, the game reports an error. The old compiled HEX may still support buttons and the built-in display but **will not automatically include these newer features**.
-
-**Electrical safety:** External WS2812 LEDs need their own appropriately sized 5V supply with shared ground, ideally a logic level shifter between micro:bit P1 and DIN. Do not power an LED strip through a micro:bit GPIO pin. Ordinary output pins use 3.3V logic and cannot directly drive high-current loads.
+See [firmware/README.md](firmware/README.md) for the one-time setup and [the official WebUSB HEX Download Tool](https://microbit.org/tools/webusb-hex-download-tool/) for installing a compiled HEX.
 
 ## Sounds, countdowns, and game effects
 
@@ -196,7 +183,7 @@ Physical micro:bit LEDs use the built-in monochrome 5×5 display, not the simula
 2. Choose the reaction game and press **Play game** to verify the LEDs illuminate when selected.
 3. Press button A or B to respond. Open **See game events** if any errors appear.
 
-The website serializes writes per device to avoid overlapping Bluetooth LED commands. The one-off diagnostic LED test button was removed from the main student interface.
+The website serializes writes per device to avoid overlapping Bluetooth LED commands.
 
 The repository includes a reusable MakeCode program at **[firmware/main.ts](firmware/main.ts)** and detailed [one-time flashing instructions](firmware/README.md). Once you have compiled a `.hex` file in MakeCode, you can flash it to additional micro:bits with the official [micro:bit WebUSB HEX Download Tool](https://microbit.org/tools/webusb-hex-download-tool/). The WebUSB tool flashes an existing HEX file; it does not compile the source. That program starts the Bluetooth Button and LED services, then leaves the display clear rather than showing a permanent heart. We have included the firmware **source**, not a compiled HEX; compile and flash it through MakeCode. Once flashed, the same firmware is used by all student games.
 
