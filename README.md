@@ -87,9 +87,9 @@ Use **Pods & Colors → set pod [number] color to [color]**. Insert a Math numbe
 
 ## Bluetooth hardware (experimental, not validated)
 
-The site supports Web Bluetooth in compatible desktop Chrome/Edge browsers over HTTPS. To connect four BBC micro:bits, each must already have suitable firmware exposing Bluetooth Button and LED GATT services. Press **Connect micro:bit** once per device, and select Hardware mode before starting.
+The site supports Web Bluetooth in compatible desktop Chrome/Edge browsers over HTTPS. Connect **one to four** BBC micro:bits, each running compatible Bluetooth firmware. Press **Connect micro:bit** once per device. In hardware mode, random targets only select connected devices. The button service is required for input; the LED service is required for the onboard display to illuminate.
 
-**Not yet verified on real micro:bits.** BLE timing, reconnection, correct firmware configuration, and other hardware limitations still require testing. The site does not install firmware onto devices. For accurate reactions, a future hardware adapter should timestamp presses locally.
+**Not yet verified on real micro:bits.** Chrome choosing a micro:bit is not sufficient: FreezePods must connect to the GATT button service and start notifications. The app now reports button readiness separately from LED support, and you can press A/B outside a running game to test input. If LED output is unavailable, check the firmware's BLE services. BLE timing, reconnection and firmware configuration still require testing. The site does not install firmware onto devices. For accurate reactions, a future hardware adapter should timestamp presses locally.
 
 ## Safety and limitations
 
