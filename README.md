@@ -54,7 +54,7 @@ These starter games use high-level Blockly game blocks that students can inspect
 
 ## Digital output pins
 
-The **Output Pins** Blockly category provides a digital HIGH/LOW output block:
+The **Output Pins** Blockly category provides a digital HIGH/LOW output block, plus experimental PWM and NeoPixel commands:
 
 `digital output: Pod [number] pin [P0/P1/P2] [HIGH/LOW]`
 
@@ -66,7 +66,24 @@ In simulation the action is logged as a preview. In **Physical micro:bits** mode
 
 Your proposed wiring is broadly correct: micro:bit GPIO to the WS2812/NeoPixel DIN pin, plus an appropriately rated external 5V power supply and shared ground between the micro:bit and LED supply. A 3.3V-to-5V logic-level shifter is recommended for reliable data when using 5V addressable LEDs. Do not power a 5V strip from a micro:bit output pin.
 
-**Digital HIGH/LOW alone cannot control addressable RGB LEDs.** These pixels require a precisely timed serial waveform. To drive them, add the MakeCode NeoPixel library/extension to the micro:bit firmware and a compatible Bluetooth command protocol, so the micro:bit generates the timing locally. That **has not yet been implemented** in FreezePods.
+**Digital HIGH/LOW alone cannot control addressable RGB LEDs.** These pixels require a precisely timed serial waveform. To drive them, add the MakeCode NeoPixel library/extension to the micro:bit firmware and a compatible Bluetooth command protocol, so the micro:bit generates the timing locally. The expanded experimental micro:bit V2 firmware now includes a local NeoPixel command handler, but it has not yet been compiled or tested on physical hardware.
+
+## Expanded micro:bit hardware controls (experimental V2 profile)
+
+The firmware source at [firmware/main.ts](firmware/main.ts) now enables these Bluetooth services: **Buttons**, **LED Matrix**, **I/O Pins**, **Accelerometer**, **Magnetometer**, **Temperature**, and **UART**. **Radio is not enabled.** The UART channel accepts short commands for the V2 speaker, custom display icons, PWM outputs, and an optional 12-LED NeoPixel strip. This is a **source-level integration, not a compiled or hardware-tested HEX**. Compile in MakeCode with both the Bluetooth and NeoPixel extensions. On micro:bit V1, this many BLE services and extensions may exceed memory; the full profile targets V2.
+
+| Blockly category | New capabilities | Hardware notes |
+|---|---|---|
+| Sensors | Sample accelerometer X/Y/Z (milli-g), heading, temperature into a variable | Requires BLE sensor services. Compass requires calibration for a meaningful heading. |
+| Inputs & Timing | Sample P0/P2 digital or analog input into a variable | BLE I/O pin readback is experimental and not yet physically verified. |
+| Output Pins | Digital HIGH/LOW, PWM 0–1023, 12-pixel NeoPixel commands, and display icons | P1 reserved as NeoPixel data output; use P0 or P2 for external GPIO/PWM. |
+| Sounds & Effects | Play a specific tone and set micro:bit speaker volume | Through BLE UART; built-in speaker is V2 only. Browser sounds still work independently. |
+
+JavaScript commands include `await pods.sensor(1, 'x')`, `await pods.pinRead(1, 0, true)`, `await pods.tone(1, 440, 200)`, `await pods.volume(1, 128)`, `await pods.pwm(1, 0, 512)`, `await pods.neoFill(1, 255, 0, 0)`, `await pods.neoPixel(1, 3, 0, 255, 0)`, `await pods.neoBrightness(1, 60)`, `await pods.neoClear(1)`, and `await pods.deviceIcon(1, 1)`.
+
+In Simulation mode, sensor values and hardware writes are placeholders for students to explore programming. They are **not real sensor measurements**. When a physical service is absent, the game reports an error. The old compiled HEX may still support buttons and the built-in display but **will not automatically include these newer features**.
+
+**Electrical safety:** External WS2812 LEDs need their own appropriately sized 5V supply with shared ground, ideally a logic level shifter between micro:bit P1 and DIN. Do not power an LED strip through a micro:bit GPIO pin. Ordinary output pins use 3.3V logic and cannot directly drive high-current loads.
 
 ## Sounds, countdowns, and game effects
 
