@@ -245,7 +245,7 @@ $('play').addEventListener('click',async()=>{
 window.FreezePodsBridge={
  start(){
   if(S.playing)return null;
-  if(S.mode==='hardware'&&S.devices.filter(d=>d?.device?.gatt?.connected).length<4){status('Connect four micro:bits first, or use Simulation.');return null;}
+  if(S.mode==='hardware'&&connectedIndices().length===0){status('Connect at least one micro:bit first, or use Simulation.');return null;}
   S.playing=true;const token=++S.run;S.score=0;S.round=0;S.hits=0;S.last=null;S.vars.clear();stats();
   $('play').disabled=true;$('stop').disabled=false;$('mode').disabled=true;$('connect').disabled=true;log('JavaScript game started');status('JavaScript game running.');
   return token;
