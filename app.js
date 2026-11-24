@@ -22,7 +22,7 @@ async function digitalWrite(index,pin,high){
    const view=await char.readValue();
    if(view.byteLength<3)throw Error('Pin configuration is not 3 bytes');
    const bytes=new Uint8Array([view.getUint8(0),view.getUint8(1),view.getUint8(2)]);
-   bytes[Math.floor(pin/8)]&=~(1<<(pin%8));
+   bytes[2-Math.floor(pin/8)]&=~(1<<(pin%8));
    await char.writeValue(bytes);
   }
   const value=new Uint8Array([pin,high?1:0]);
