@@ -23,3 +23,10 @@
 .led-test-controls select{min-width:0}
 .led-test-controls button{width:100%}
 .device-setup-link{display:inline-block;margin-top:4px;font-size:12px;font-weight:650}
+
+/* Clean play settings */
+.mode{min-width:260px;gap:9px}
+.mode .sound-check{display:flex;align-items:center;gap:9px;padding:10px 3px 2px;cursor:pointer;font-size:13px;font-weight:650;color:#2e4a5f}
+.sound-check input{width:17px;height:17px;accent-color:#247a69}
+.device-setup-link{font-size:12px}
+.led-test-controls{display:none}
