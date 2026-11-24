@@ -30,3 +30,12 @@
 .sound-check input{width:17px;height:17px;accent-color:#247a69}
 .device-setup-link{font-size:12px}
 .led-test-controls{display:none}
+
+/* Game templates and optional RGB pixel previews */
+.pixel-strip{display:grid;grid-template-columns:repeat(6,1fr);gap:3px;width:min(100%,120px);margin:0 auto}
+.pixel{width:100%;aspect-ratio:1;border-radius:4px;background:#202b3c;border:1px solid #a0afbf33;transition:background .12s,box-shadow .12s}
+.duel-scores{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:0 22px 16px;color:#34516b}
+.duel-scores span{background:#f0f5fb;border-radius:10px;padding:9px 12px;font-size:13px}
+.duel-scores strong{font-size:20px;margin-left:9px}
+.duel-scores small{color:#758597}
+@media(max-width:750px){.pixel-strip{gap:2px;width:74px;grid-template-columns:repeat(6,1fr)}.pixel{border-radius:2px}.duel-scores{padding:0 14px 14px}.duel-scores small{width:100%}}
