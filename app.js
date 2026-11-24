@@ -266,9 +266,22 @@ ws=Blockly.inject('blockly',{toolbox,trashcan:true,scrollbars:true,zoom:{control
 window.addEventListener('resize',()=>Blockly.svgResize(ws));
 const reactionXml='<xml xmlns="https://developers.google.com/blockly/xml"><block type="game_start" x="30" y="35"><statement name="DO"><block type="repeat_rounds"><field name="COUNT">8</field><statement name="DO"><block type="light_random"><next><block type="wait_press"><field name="MS">3000</field><next><block type="score_response"><field name="RIGHT">10</field><field name="WRONG">-5</field><next><block type="clear_pods"><next><block type="pause_ms"><value name="MS"><shadow type="math_number"><field name="NUM">600</field></shadow></value></block></next></block></next></block></next></block></next></block></statement></block></statement></block></xml>';
 const memoryXml='<xml xmlns="https://developers.google.com/blockly/xml"><variables><variable id="seqvar">sequence</variable></variables><block type="game_start" x="30" y="35"><statement name="DO"><block type="repeat_rounds"><field name="COUNT">5</field><statement name="DO"><block type="variables_set"><field name="VAR" id="seqvar">sequence</field><value name="VALUE"><block type="sequence_random"><value name="LENGTH"><shadow type="math_number"><field name="NUM">3</field></shadow></value></block></value><next><block type="sequence_show"><field name="MS">600</field><value name="SEQUENCE"><block type="variables_get"><field name="VAR" id="seqvar">sequence</field></block></value><next><block type="sequence_check"><field name="MS">3000</field><value name="SEQUENCE"><block type="variables_get"><field name="VAR" id="seqvar">sequence</field></block></value><next><block type="score_response"><field name="RIGHT">20</field><field name="WRONG">-5</field><next><block type="clear_pods"><next><block type="pause_ms"><value name="MS"><shadow type="math_number"><field name="NUM">800</field></shadow></value></block></next></block></next></block></next></block></next></block></next></block></statement></block></statement></block></xml>';
+const speedXml='<xml xmlns="https://developers.google.com/blockly/xml"><block type="game_start" x="30" y="35"><statement name="DO"><block type="countdown"><field name="SECONDS">3</field><next><block type="speed_game"><field name="SECONDS">20</field><field name="RIGHT">10</field><field name="WRONG">-5</field></block></next></block></statement></block></xml>';
+const simonXml='<xml xmlns="https://developers.google.com/blockly/xml"><block type="game_start" x="30" y="35"><statement name="DO"><block type="simon_game"><field name="LEVELS">5</field><field name="START">1</field></block></statement></block></xml>';
+const duelXml='<xml xmlns="https://developers.google.com/blockly/xml"><block type="game_start" x="30" y="35"><statement name="DO"><block type="countdown"><field name="SECONDS">3</field><next><block type="duel_game"><field name="ROUNDS">10</field><field name="POINTS">10</field></block></next></block></statement></block></xml>';
 function template(xml,label){if(S.playing)return;ws.clear();Blockly.Xml.domToWorkspace(Blockly.utils.xml.textToDom(xml),ws);status(label+' loaded. Press Play.');}
 $('example').textContent='Reaction game';$('example').addEventListener('click',()=>template(reactionXml,'Reaction game'));template(reactionXml,'Reaction game');
 const memoryBtn=document.createElement('button');memoryBtn.id='memory';memoryBtn.type='button';memoryBtn.textContent='Memory game';$('example').after(memoryBtn);memoryBtn.addEventListener('click',()=>template(memoryXml,'Memory game'));
+
+for(const [id,label,xml] of [
+ ['speed-game','Speed Challenge',speedXml],
+ ['simon-game','Simon Says',simonXml],
+ ['duel-game','Two-Player Duel',duelXml]
+]){
+ const button=document.createElement('button');button.id=id;button.type='button';button.textContent=label;button.className='secondary';
+ $('memory').after(button);
+ button.addEventListener('click',()=>template(xml,label));
+}
 $('save').addEventListener('click',()=>{const output={format:'freezepods-blockly-v2',workspace:Blockly.serialization.workspaces.save(ws)},blob=new Blob([JSON.stringify(output,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='my-freezepods-game.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),500);});
 $('load').addEventListener('click',()=>$('file').click());
 $('file').addEventListener('change',async e=>{const f=e.target.files?.[0];e.target.value='';if(!f||S.playing)return;try{const json=JSON.parse(await f.text());if(!['freezepods-blockly-v1','freezepods-blockly-v2'].includes(json.format)||!json.workspace)throw Error('Unrecognized project file');ws.clear();Blockly.serialization.workspaces.load(json.workspace,ws);status('Game loaded.');}catch(err){status('Load failed: '+err.message);}});
@@ -360,6 +373,87 @@ async function perform(first,token,budget){
     await sleepCancelable(lo+Math.floor(Math.random()*(hi-lo+1)),token);break;
    }
 
+
+   case 'strip_fill':{const i=Math.floor(numeric(v('POD')))-1;stripFill(i,f('COLOR'));break;}
+   case 'strip_pixel':{const i=Math.floor(numeric(v('POD')))-1,p=Math.floor(numeric(v('PIXEL')))-1;stripPixel(i,p,f('COLOR'));break;}
+   case 'strip_rainbow':{const i=Math.floor(numeric(v('POD')))-1;stripRainbow(i);break;}
+   case 'strip_brightness':rgbBrightness=Math.max(0,Math.min(100,numeric(f('BRIGHT'),80)));for(let i=0;i<4;i++)renderPixels(i);rgbStatus();break;
+   case 'speed_game':{
+    const seconds=Math.max(5,Math.min(90,numeric(f('SECONDS'),20)));
+    const deadline=performance.now()+seconds*1000;
+    status('Speed Challenge! Hit the green pod.');sound('start');
+    while(on(token)&&performance.now()<deadline){
+     S.round++;stats();clear();
+     const i=randomIndex();S.target=i;paint(i,'green');
+     const timeLeft=deadline-performance.now();
+     if(timeLeft<=0)break;
+     const response=await receive(Math.max(100,Math.min(1800,timeLeft)),token);
+     if(!on(token))break;
+     S.last=response?{...response,correct:response.index===i}:{index:-1,correct:false,ms:null};
+     const hit=S.last.correct;S.score+=hit?numeric(f('RIGHT'),10):numeric(f('WRONG'),-5);
+     if(hit){S.hits++;sound('success');}else sound('miss');
+     stats();log('Speed round '+S.round+': '+(hit?'hit':'miss'));
+     clear();await sleepCancelable(220,token);
+    }
+    clear();if(on(token)){sound('timeup');status('Time up! Score: '+S.score);}
+    break;
+   }
+   case 'simon_game':{
+    const levels=Math.max(1,Math.min(12,Math.floor(numeric(f('LEVELS'),5))));
+    const initial=Math.max(1,Math.min(6,Math.floor(numeric(f('START'),1))));
+    const sequence=Array.from({length:initial},()=>randomIndex());
+    for(let level=1;level<=levels&&on(token);level++){
+     if(level>1)sequence.push(randomIndex());
+     S.round=level;stats();status('Simon Says, level '+level+': watch!');sound('level');
+     await sleepCancelable(500,token);
+     for(const i of sequence){
+      if(!on(token))break;
+      clear();paint(i,'blue');sound('tick');
+      await sleepCancelable(550,token);clear();await sleepCancelable(220,token);
+     }
+     if(!on(token))break;
+     status('Repeat '+sequence.length+' pods in order');
+     let correct=true;
+     for(const target of sequence){
+      const response=await receive(3500,token);
+      if(!on(token))break;
+      if(!response||response.index!==target){correct=false;break;}
+      paint(target,'green');sound('beep');await sleepCancelable(90,token);clear();
+     }
+     if(!on(token))break;
+     S.last={correct,index:-1,ms:null};
+     if(correct){S.score+=20;S.hits++;sound('success');status('Level '+level+' complete!');}
+     else{S.score-=5;sound('miss');status('Sequence missed. Next level!');}
+     stats();log('Simon Says level '+level+': '+(correct?'correct':'miss'));
+     clear();await sleepCancelable(850,token);
+    }
+    break;
+   }
+   case 'duel_game':{
+    const ready=playableIndices();
+    if(ready.length<2)throw Error('Two-player competition needs at least two pods. Connect a second micro:bit or use Simulation.');
+    const players=ready.slice(0,2);
+    const rounds=Math.max(1,Math.min(30,Math.floor(numeric(f('ROUNDS'),10))));
+    const points=Math.max(1,Math.min(100,Math.floor(numeric(f('POINTS'),10))));
+    duelTotals=[0,0];duelScores();
+    for(let round=1;round<=rounds&&on(token);round++){
+     S.round=round;stats();clear();
+     status('Duel '+round+': get ready!');
+     await sleepCancelable(500+Math.random()*800,token);
+     if(!on(token))break;
+     const winner=Math.floor(Math.random()*2),i=players[winner];
+     S.target=i;paint(i,'green');sound('beep');
+     const press=await receive(2200,token);if(!on(token))break;
+     S.last=press?{...press,correct:press.index===i}:{index:-1,correct:false,ms:null};
+     if(S.last.correct){duelTotals[winner]+=points;S.score+=points;S.hits++;sound('success');status('Player '+(winner+1)+' scored!');}
+     else{sound('miss');status('No points this round');}
+     stats();duelScores();log('Duel round '+round+' target Player '+(winner+1));
+     clear();await sleepCancelable(420,token);
+    }
+    if(on(token)){status('Duel finished! Player 1: '+duelTotals[0]+' · Player 2: '+duelTotals[1]);sound('level');}
+    break;
+   }
+
    case 'sequence_show':{const seq=v('SEQUENCE');if(!Array.isArray(seq))throw Error('Show sequence needs a list.');status('Remember the sequence!');for(const number of seq.slice(0,20)){if(!on(token))break;clear();paint(Math.floor(numeric(number))-1,'blue');await sleepCancelable(numeric(f('MS'),600),token);clear();await sleepCancelable(160,token);}break;}
    case 'sequence_check':{const seq=v('SEQUENCE');if(!Array.isArray(seq))throw Error('Check sequence needs a list.');status('Repeat the sequence in order!');let correct=true;let elapsed=0;for(const number of seq.slice(0,20)){const press=await receive(numeric(f('MS'),3000),token);if(!on(token))break;if(!press||press.index+1!==Number(number)){correct=false;break;}elapsed+=press.ms;paint(press.index,'green');await sleepCancelable(110,token);clear();}if(on(token)){S.last={index:-1,correct,ms:correct?elapsed:null};stats();log(correct?'Sequence correct!':'Sequence incorrect or timed out');}break;}
    case 'list_push':{const arr=v('LIST');if(!Array.isArray(arr))throw Error('Add to list needs a list variable.');if(arr.length>=100)throw Error('List limit is 100 items.');arr.push(v('ITEM'));break;}
@@ -378,7 +472,7 @@ $('play').addEventListener('click',async()=>{
  const starts=ws.getTopBlocks(true).filter(b=>b.type==='game_start');
  if(starts.length!==1){status('Add exactly one "when game starts" block.');return;}
  if(S.mode==='hardware'&&connectedIndices().length===0){status('Connect at least one micro:bit first, or use Simulation.');return;}
- S.playing=true;const token=++S.run;S.score=0;S.round=0;S.hits=0;S.last=null;S.vars.clear();stats();$('play').disabled=true;$('stop').disabled=false;$('mode').disabled=true;$('connect').disabled=true;log('Game started');
+ S.playing=true;const token=++S.run;S.score=0;S.round=0;S.hits=0;S.last=null;S.vars.clear();duelTotals=[0,0];duelScores();stats();$('play').disabled=true;$('stop').disabled=false;$('mode').disabled=true;$('connect').disabled=true;log('Game started');
  try{await perform(starts[0].getInputTargetBlock('DO'),token,{steps:0,start:performance.now()});if(on(token)){status('Game complete! Score: '+S.score);log('Game complete');}}
  catch(e){status('Game error: '+e.message);log(e.message);}
  finally{if(token===S.run)finish();}
@@ -424,5 +518,6 @@ window.FreezePodsBridge={
 };
 
 const mute=$('sound-toggle');if(mute){mute.checked=true;mute.addEventListener('change',()=>{soundEnabled=mute.checked;if(soundEnabled)ensureAudio();});}
+for(let i=0;i<4;i++)renderPixels(i);
 switchMode();stats();
 })();
