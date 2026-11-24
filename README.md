@@ -85,6 +85,25 @@ Use **Pods & Colors → set pod [number] color to [color]**. Insert a Math numbe
 | `editor.js` | JavaScript editor, starter programs and sandboxed game runner |
 | `README.md` | This guide |
 
+## One-micro:bit setup and troubleshooting
+
+If Chrome shows your micro:bit but FreezePods still reports **0 ready**, Chrome device selection alone does not mean the board exposes the Bluetooth Button Service. A paired device may be in pairing mode without running a program that starts the required services.
+
+1. Go to [MakeCode](https://makecode.microbit.org/), create a new program, and add the **Bluetooth extension**.
+2. In MakeCode's JavaScript editor, use:
+
+   ```typescript
+   bluetooth.startButtonService()
+   bluetooth.startLEDService()
+   basic.showIcon(IconNames.Heart)
+   ```
+
+3. For initial testing, set MakeCode's Bluetooth security/pairing setting to **No Pairing Required**. Download the program to the micro:bit by USB and reset it so that the heart program is running.
+4. On FreezePods, choose **micro:bit Bluetooth (test mode)**, select **Connect micro:bit**, and select the device from Chrome's chooser. You need only **one** board.
+5. The diagnostics below the connection counter now show the stage: device selected, GATT connected, Button Service, and LED matrix. With one board ready, press A/B to confirm input and launch a Reaction game. Random targets use that board only.
+
+If it still fails, copy the **Setup stopped** diagnostic and the **See game events** log. The exact error tells us whether discovery, GATT or firmware services are the blocker.
+
 ## Bluetooth hardware (experimental, not validated)
 
 The site supports Web Bluetooth in compatible desktop Chrome/Edge browsers over HTTPS. Connect **one to four** BBC micro:bits, each running compatible Bluetooth firmware. Press **Connect micro:bit** once per device. In hardware mode, random targets only select connected devices. The button service is required for input; the LED service is required for the onboard display to illuminate.
