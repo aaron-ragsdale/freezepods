@@ -15,7 +15,7 @@ The FreezePods website controls the micro:bit over Web Bluetooth. Each micro:bit
    ```
 
 4. Set the MakeCode Bluetooth security/pairing option to **No Pairing Required** for this classroom test. This allows the browser to connect without the micro:bit pairing gesture. Consider the security implications of unauthenticated connections before wider use.
-5. Download the firmware and copy/flash the resulting `.hex` file onto the micro:bit via USB. You can re-use a compiled HEX for other devices of the same micro:bit hardware revision.
+5. Compile/download the `.hex` file from MakeCode, then flash it onto the micro:bit using USB. For a convenient browser-based flashing option, use the official [micro:bit WebUSB HEX Download Tool](https://microbit.org/tools/webusb-hex-download-tool/). This tool installs an **existing `.hex` file**; it does not compile `main.ts` to HEX. You can reuse a compatible compiled HEX for other devices of the same micro:bit hardware revision.
 6. Reset **once** and let the program run. **Do not press reset three times** to enter special pairing mode. A blank display is expected because `basic.clearScreen()` leaves the LEDs under browser control.
 7. In Chrome or Edge, open the [FreezePods website](https://aaron-ragsdale.github.io/freezepods/), choose **micro:bit Bluetooth (test mode)** and press **Connect micro:bit**. Select your micro:bit in the browser chooser.
 8. Check for **1 micro:bit ready**, press its A/B buttons, and use **Test LEDs** to flash its display before playing.
