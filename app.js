@@ -11,7 +11,6 @@ function duelScores(){const a=$('player1-score'),b=$('player2-score');if(a)a.tex
 async function digitalWrite(index,pin,high){
  if(index<0||index>3)throw Error('Pod must be 1–4.');
  if(![0,1,2].includes(pin))throw Error('Choose P0, P1 or P2.');
- if(pin===1&&S.mode==='hardware')throw Error('P1 is reserved for the NeoPixel strip in the expanded firmware. Use P0 or P2 for GPIO.');
  if(S.mode==='simulation'){status('Virtual pod '+(index+1)+' P'+pin+' → '+(high?'HIGH':'LOW'));log('Preview: Pod '+(index+1)+' P'+pin+' '+(high?'HIGH':'LOW'));return;}
  requireConnected(index);
  const info=S.devices[index];
@@ -319,16 +318,14 @@ Blockly.defineBlocksWithJsonArray([
  {type:'neo_clear',message0:'Pod %1 clear LEDs',args0:[{type:'field_dropdown',name:'POD',options:[['1','0'],['2','1'],['3','2'],['4','3']]}],previousStatement:null,nextStatement:null,colour:165},
  {type:'device_icon',message0:'Pod %1 show icon %2',args0:[{type:'field_dropdown',name:'POD',options:[['1','0'],['2','1'],['3','2'],['4','3']]},{type:'field_dropdown',name:'ICON',options:[['clear','0'],['heart','1'],['check','2'],['X','3'],['diamond','4']]}],previousStatement:null,nextStatement:null,colour:145},
  {type:'pin_pwm',message0:'Pod %1 PWM pin %2 value %3',args0:[{type:'field_dropdown',name:'POD',options:[['1','0'],['2','1'],['3','2'],['4','3']]},{type:'field_dropdown',name:'PIN',options:[['P0','0'],['P2','2']]},{type:'field_number',name:'VALUE',value:512,min:0,max:1023}],previousStatement:null,nextStatement:null,colour:165},
- {type:'gpio_write',message0:'digital output: Pod %1 pin %2 %3',args0:[{type:'input_value',name:'POD',check:'Number'},{type:'field_dropdown',name:'PIN',options:[['P0','0'],['P1','1'],['P2','2']]},{type:'field_dropdown',name:'STATE',options:[['HIGH','1'],['LOW','0']]}],previousStatement:null,nextStatement:null,colour:165,tooltip:'GPIO HIGH/LOW using Bluetooth. P1 is reserved for NeoPixels in the expanded firmware.'},
+ {type:'gpio_write',message0:'digital output: Pod %1 pin %2 %3',args0:[{type:'input_value',name:'POD',check:'Number'},{type:'field_dropdown',name:'PIN',options:[['P0','0'],['P1','1'],['P2','2']]},{type:'field_dropdown',name:'STATE',options:[['HIGH','1'],['LOW','0']]}],previousStatement:null,nextStatement:null,colour:165,tooltip:'Optional simple digital HIGH or LOW output. Requires Bluetooth I/O Pin Service firmware.'},
 ]);
 const block=t=>({kind:'block',type:t});
 const toolbox={kind:'categoryToolbox',contents:[
- {kind:'category',name:'Game',colour:'#bb7a31',contents:['game_start','repeat_rounds','speed_game','duel_game','game_message','game_stop'].map(block)},
- {kind:'category',name:'Pods & Colors',colour:'#329067',contents:['light_random','light_specific','pod_color','flash_pod','pods_all_color','pod_random','clear_pods'].map(block)},
- {kind:'category',name:'Output Pins',colour:'#4b9caa',contents:['gpio_write','pin_pwm','neo_fill','neo_pixel','neo_brightness','neo_clear','device_icon'].map(block)},
- {kind:'category',name:'Inputs & Timing',colour:'#3777bd',contents:['sensor_sample','pin_sample','wait_press','pod_wait_specific','pod_last_pressed','pod_correct','pause_ms','wait_random'].map(block)},
- {kind:'category',name:'Sensors',colour:'#74944a',contents:['sensor_sample','pin_sample'].map(block)},
- {kind:'category',name:'Sounds & Effects',colour:'#bb5292',contents:['sound_play','device_tone','device_volume','countdown','feedback_last'].map(block)},
+ {kind:'category',name:'Games',colour:'#bb7a31',contents:['game_start','repeat_rounds','speed_game','duel_game','game_message','game_stop'].map(block)},
+ {kind:'category',name:'Pod Inputs',colour:'#3777bd',contents:['wait_press','pod_wait_specific','pod_last_pressed','pod_correct','pin_sample'].map(block)},
+ {kind:'category',name:'Pod Outputs',colour:'#329067',contents:['light_random','light_specific','pod_color','flash_pod','pods_all_color','pod_random','clear_pods','gpio_write'].map(block)},
+ {kind:'category',name:'Timing & Sounds',colour:'#bb5292',contents:['pause_ms','wait_random','countdown','sound_play','feedback_last'].map(block)},
  {kind:'category',name:'Scoring',colour:'#995cb7',contents:['score_response','score_change','score_value'].map(block)},
  {kind:'category',name:'Memory & Lists',colour:'#bb8741',contents:['simon_game','sequence_random','sequence_show','sequence_check','list_push','list_match','lists_create_with','lists_length','lists_getIndex'].map(block)},
  {kind:'category',name:'Logic',colour:'#5386c4',contents:['controls_if','logic_compare','logic_operation','logic_negate','logic_boolean','logic_null'].map(block)},
@@ -591,14 +588,6 @@ window.FreezePodsBridge={
    case 'digitalWrite':await digitalWrite(Math.floor(num(args[0]))-1,Math.floor(num(args[1])),args[2]===true||args[2]===1);return true;
    case 'sensor':return await readSensor(indexPod(args[0]),String(args[1]));
    case 'pinRead':return await readPin(indexPod(args[0]),Math.floor(num(args[1])),!!args[2]);
-   case 'tone':await toneDevice(indexPod(args[0]),args[1],args[2]);return true;
-   case 'volume':await volumeDevice(indexPod(args[0]),args[1]);return true;
-   case 'neoFill':await neoFill(indexPod(args[0]),args[1],args[2],args[3]);return true;
-   case 'neoPixel':await neoPixel(indexPod(args[0]),args[1],args[2],args[3],args[4]);return true;
-   case 'neoBrightness':await neoBrightness(indexPod(args[0]),args[1]);return true;
-   case 'neoClear':await neoClear(indexPod(args[0]));return true;
-   case 'deviceIcon':await deviceIcon(indexPod(args[0]),args[1]);return true;
-   case 'pwm':await pwmDevice(indexPod(args[0]),Math.floor(num(args[1])),args[2]);return true;
    case 'state':return {score:S.score,round:S.round,hits:S.hits};
    default:throw Error('Unsupported game command');
   }
