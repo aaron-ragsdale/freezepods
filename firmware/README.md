@@ -19,6 +19,7 @@ After a successful hardware test, the compiled HEX can be committed to this fold
    ```typescript
    bluetooth.startButtonService()
    bluetooth.startLEDService()
+   bluetooth.startIOPinService()
    basic.clearScreen()
    ```
 
@@ -49,3 +50,11 @@ The micro:bit's 5×5 display is **monochrome**. Virtual colored pods are shown o
 The website uses Bluetooth GATT Button Service notifications to receive Button A/B presses. For LED output it writes five bytes (one byte for each row of the 5×5 display) to the LED Matrix State characteristic. The website now serializes writes per device and provides a dedicated on/off test.
 
 References: [MakeCode Bluetooth LED Service](https://makecode.microbit.org/reference/bluetooth/start-led-service) and [micro:bit Bluetooth GATT LED service](https://lancaster-university.github.io/microbit-docs/ble/led-service/).
+
+## GPIO output blocks
+
+The website's **Output Pins** category supports HIGH/LOW on P0, P1, or P2. These use the optional standard Bluetooth I/O Pin Service and require an updated MakeCode HEX compiled with `bluetooth.startIOPinService()`. The browser sets the selected pin's configuration to digital output before sending its value. Verify the pin with a suitable resistor and small LED or a meter before attaching other hardware.
+
+The existing candidate `.hex` file may **not** include the I/O Pin Service, even if buttons and built-in LEDs work. Updating this `main.ts` source does not change an already compiled HEX; recompile and flash it.
+
+Addressable LED strips are different: they require the MakeCode NeoPixel extension (or another timing-aware firmware library), a suitable command protocol, external 5V supply, common ground, and generally a 3.3V-to-5V data level shifter. The current HIGH/LOW block **does not** implement WS2812 color data.
