@@ -81,39 +81,6 @@ function enqueueLed(i,color){
  });
  return info.ledWrites;
 }
-async function testLeds(){
- if(S.playing){status('Stop the game before testing LEDs.');return;}
- if(S.mode!=='hardware'){status('Select micro:bit Bluetooth mode to test physical LEDs.');return;}
- const ready=connectedIndices();
- if(!ready.length){status('Connect a micro:bit first.');return;}
- const button=$('test-leds');button.disabled=true;
- try{
-  const idx=Number($('test-pod')?.value??-1);
-  const indices=idx===-1?ready:ready.filter(i=>i===idx);
-  if(!indices.length)throw Error('Selected pod is not connected.');
-  for(const i of indices){
-   const info=S.devices[i];
-   if(!info.matrix){log('Pod '+(i+1)+' has no LED matrix characteristic.');continue;}
-   status('Testing Pod '+(i+1)+' LED matrix…');
-   await enqueueLed(i,'off');
-   await new Promise(resolve=>setTimeout(resolve,300));
-   await enqueueLed(i,'green');
-   const reads=info.matrix.properties.read;
-   if(reads){
-    try{
-     const value=await info.matrix.readValue();
-     log('Pod '+(i+1)+' LED readback: '+Array.from({length:Math.min(5,value.byteLength)},(_,k)=>value.getUint8(k)).join(', '));
-    }catch(err){log('Pod '+(i+1)+' LED readback not available: '+err.message);}
-   }
-   await new Promise(resolve=>setTimeout(resolve,1600));
-   await enqueueLed(i,'off');
-   log('Pod '+(i+1)+' LED on/off write sequence completed. Check physical LEDs.');
-  }
-  status('LED test commands completed. Did the micro:bit lights visibly change?');
- }catch(err){status('LED test failed: '+err.message);log('LED test: '+err.message);}
- finally{button.disabled=false;}
-}
-
 function clear(){for(let i=0;i<4;i++)paint(i,'off');S.target=-1;}
 function resolvePress(i){
   if(!S.playing||!S.pending)return;
@@ -129,8 +96,6 @@ function requireConnected(i){if(S.mode==='hardware'&&!connectedIndices().include
 let bluetoothStage='';
 function connectionStage(message){bluetoothStage=message;const el=$('device-diagnostics');if(el)el.textContent=message;log('BLE: '+message);}
 function updateConnections(){
- const tester=$('test-leds');if(tester)tester.disabled=S.playing||!connectedIndices().length;
- const selector=$('test-pod');if(selector){const prev=selector.value;selector.innerHTML='';const all=document.createElement('option');all.value='-1';all.textContent='All connected';selector.appendChild(all);for(const i of connectedIndices()){const o=document.createElement('option');o.value=String(i);o.textContent='Pod '+(i+1);selector.appendChild(o);}selector.value=[...selector.options].some(o=>o.value===prev)?prev:'-1';}
  const ready=connectedIndices();
  $('devices').textContent=ready.length+' micro:bit'+(ready.length===1?'':'s')+' ready'+(ready.length?' (Pod '+ready.map(i=>i+1).join(', ')+')':'');
  for(let i=0;i<4;i++){
@@ -143,7 +108,6 @@ function updateConnections(){
 }
 function switchMode(){S.mode=$('mode').value;$('connect').hidden=S.mode!=='hardware';$('connect').disabled=S.playing;updateConnections();}
 $('mode').addEventListener('change',switchMode);
-$('test-leds')?.addEventListener('click',testLeds);
 $('connect').addEventListener('click',async()=>{
  if(!navigator.bluetooth){status('Web Bluetooth requires Chrome/Edge, enabled Bluetooth, and HTTPS.');return;}
  if(connectedIndices().length>=4){status('Four devices already connected.');return;}
