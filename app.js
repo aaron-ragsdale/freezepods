@@ -23,12 +23,12 @@ function rgbStatus(){
 }
 function stripFill(i,color){
  if(i<0||i>3)throw Error('Pod number must be 1–4');
- rgbValues[i].fill(COLORS[color]||'#202b3c');renderPixels(i);rgbStatus();
+ rgbValues[i].fill(color==='off'?'#202b3c':COLORS[color]||'#202b3c');renderPixels(i);rgbStatus();
 }
 function stripPixel(i,p,color){
  if(i<0||i>3)throw Error('Pod number must be 1–4');
  if(p<0||p>=PIXEL_COUNT)throw Error('Pixel number must be 1–'+PIXEL_COUNT);
- rgbValues[i][p]=COLORS[color]||'#202b3c';renderPixels(i);rgbStatus();
+ rgbValues[i][p]=color==='off'?'#202b3c':COLORS[color]||'#202b3c';renderPixels(i);rgbStatus();
 }
 function stripRainbow(i){
  if(i<0||i>3)throw Error('Pod number must be 1–4');
@@ -504,6 +504,10 @@ window.FreezePodsBridge={
    case 'round':S.round++;stats();return S.round;
    case 'message':{const t=String(args[0]??'').slice(0,160);status(t);log(t);return true;}
    case 'sound':sound(String(args[0]||'beep'));return true;
+   case 'rgbFill':stripFill(Math.floor(num(args[0]))-1,String(args[1]||'green'));return true;
+   case 'rgbPixel':stripPixel(Math.floor(num(args[0]))-1,Math.floor(num(args[1]))-1,String(args[2]||'green'));return true;
+   case 'rgbRainbow':stripRainbow(Math.floor(num(args[0]))-1);return true;
+   case 'rgbBrightness':rgbBrightness=Math.max(0,Math.min(100,num(args[0],80)));for(let i=0;i<4;i++)renderPixels(i);rgbStatus();return true;
    case 'state':return {score:S.score,round:S.round,hits:S.hits};
    default:throw Error('Unsupported game command');
   }
