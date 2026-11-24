@@ -13,12 +13,12 @@
 <body>
   <header class="topbar">
     <div class="brand"><span class="logo">✳</span><div><strong>FreezePods</strong><small>Make a game. Make it move.</small></div></div>
-    <span class="tag">Blockly + JavaScript · hardware test</span>
+    <span class="tag">Build · Play · Remix</span>
   </header>
   <main>
     <section class="intro">
-      <div><p class="eyebrow">BUILD · TEST · REMIX</p><h1>Make your own reaction game.</h1><p>Build reaction games and memory challenges with variables, lists, logic, loops, and colored lights. Test with four virtual pods, or connect 1–4 BBC micro:bits with Bluetooth.</p></div>
-      <div class="mode"><label for="mode">Play mode</label><select id="mode"><option value="simulation">Simulation</option><option value="hardware">micro:bit Bluetooth (test mode)</option></select><button id="connect" class="secondary" type="button">+ Connect micro:bit</button><span id="devices">0 micro:bits ready</span><small id="device-diagnostics" class="device-diagnostics">Connect 1–4 BBC micro:bits. Buttons can be tested before starting a game.</small><div class="led-test-controls"><label for="test-pod">LED test</label><select id="test-pod"><option value="-1">All connected</option></select><button type="button" id="test-leds" class="secondary" disabled>Test LEDs (2 sec)</button></div><a class="device-setup-link" href="./firmware/README.md">Set up a micro:bit</a></div>
+      <div><p class="eyebrow">BUILD · TEST · REMIX</p><h1>Make your own games.</h1><p>Use Blockly or JavaScript to invent reaction games, memory challenges, and new rules. Add light patterns, sounds, scoring, and timing, then test with virtual or physical pods.</p></div>
+      <div class="mode"><label for="mode">Play with</label><select id="mode"><option value="simulation">Virtual pods</option><option value="hardware">Physical micro:bits</option></select><button id="connect" class="secondary" type="button">+ Connect micro:bit</button><span id="devices">0 micro:bits ready</span><small id="device-diagnostics" class="device-diagnostics">Connect 1–4 micro:bits using Chrome.</small><label class="sound-check"><input id="sound-toggle" type="checkbox" checked> <span>Game sounds</span></label><a class="device-setup-link" href="./firmware/README.md">Micro:bit setup guide</a></div>
     </section>
     <section class="workspace-panel">
       <div class="section-head"><div><h2>My game</h2><p id="workspace-description">Choose Reaction game or Memory game, then remix with variables, lists, math, conditions, loops, and colored pods.</p></div>
@@ -42,7 +42,7 @@
         </div>
         <label for="js-code" class="editor-label">Write your game's JavaScript</label>
         <textarea id="js-code" spellcheck="false" autocomplete="off" autocapitalize="off" aria-label="JavaScript code editor"></textarea>
-        <p class="hint">Commands: <code>await pods.light(1, 'blue')</code>, <code>await pods.off()</code>, <code>await pods.wait(500)</code>, <code>await pods.waitPress(3000)</code>, <code>await pods.addScore(10)</code>, <code>await pods.nextRound()</code>, <code>await pods.randomPod()</code>, <code>await pods.message('Hello')</code>. Use <code>for</code>, <code>if</code>, arrays and variables to build games. JavaScript mode is separate from Blocks mode.</p>
+        <p class="hint">Commands: <code>await pods.sound(&#39;success&#39;)</code>, <code>await pods.light(1, 'blue')</code>, <code>await pods.off()</code>, <code>await pods.wait(500)</code>, <code>await pods.waitPress(3000)</code>, <code>await pods.addScore(10)</code>, <code>await pods.nextRound()</code>, <code>await pods.randomPod()</code>, <code>await pods.message('Hello')</code>. Use <code>for</code>, <code>if</code>, arrays and variables to build games. JavaScript mode is separate from Blocks mode.</p>
         <p class="hint">Security: programs run inside a sandboxed frame with only the limited FreezePods command interface. This is an early educational sandbox, not a hardened environment for running untrusted third-party code.</p>
       </section>
     </section>
@@ -55,7 +55,7 @@
         <button type="button" class="pod" data-pod="2"><span class="led" aria-hidden="true"></span><strong>Pod 3</strong><small>Click to press</small></button>
         <button type="button" class="pod" data-pod="3"><span class="led" aria-hidden="true"></span><strong>Pod 4</strong><small>Click to press</small></button>
       </div>
-      <p class="hint">Simulation: click pods or press keys 1–4. Colored lights work in simulation. Standard BBC micro:bit LED matrices are monochrome, so hardware uses on/off patterns. Hardware test mode supports 1–4 connected micro:bits; random targets use only connected pods. A connected device needs Bluetooth Button services; LED output needs the LED service enabled in its firmware.</p>
+      <p class="hint">Click virtual pods or use keys 1–4. With physical micro:bits, press A or B. Game sounds come from the browser, not the micro:bit. The built-in micro:bit display is monochrome.</p>
       <details><summary>See game events</summary><ol id="log" aria-live="polite"></ol></details>
     </section>
   </main>
