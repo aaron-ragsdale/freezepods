@@ -1,20 +1,12 @@
-# Set up a BBC micro:bit for FreezePods
+# FreezePods micro:bit setup
 
-The FreezePods website controls the micro:bit over Web Bluetooth. Each micro:bit must have compatible firmware installed **once**. Students can then use many Blockly and JavaScript games without changing that firmware.
+FreezePods is a browser-based game builder that uses **1–4 micro:bits as physical pods**. You only need to flash a compatible Bluetooth HEX once per device. Students can create new games in Blockly or JavaScript without reflashing the board.
 
-## Candidate compiled HEX (testing)
+## One-time setup
 
-The candidate file `microbit-bluettoth.hex` is **being tested and is not yet in this GitHub repository**. The documented source, [main.ts](./main.ts), is available now. Please don't rely on an unverified HEX as an official classroom release.
-
-If you have the candidate HEX locally, use the [official micro:bit WebUSB HEX Download Tool](https://microbit.org/tools/webusb-hex-download-tool/) to flash it, then check that both A/B button notifications and the built-in LED display work in FreezePods. The WebUSB tool does not compile MakeCode source files.
-
-After a successful hardware test, the compiled HEX can be committed to this folder and linked directly from this README.
-
-## Install once per micro:bit
-
-1. Open [Microsoft MakeCode](https://makecode.microbit.org/) and create a project.
-2. Open **Extensions**, search for **Bluetooth** and add it (accept removing **Radio** if prompted).
-3. Switch to JavaScript, and replace the project code with the contents of [main.ts](./main.ts):
+1. Open [Microsoft MakeCode](https://makecode.microbit.org/) and choose a micro:bit project.
+2. Add the **Bluetooth** extension. Do not enable the **Radio** extension.
+3. Switch to JavaScript and paste the source from [main.ts](main.ts):
 
    ```typescript
    bluetooth.startButtonService()
@@ -23,74 +15,30 @@ After a successful hardware test, the compiled HEX can be committed to this fold
    bluetooth.startAccelerometerService()
    bluetooth.startMagnetometerService()
    bluetooth.startTemperatureService()
-   bluetooth.startUartService()
-   // Also configure the NeoPixel extension and UART command handler shown in main.ts.
    basic.clearScreen()
    ```
 
-4. Set the MakeCode Bluetooth security/pairing option to **No Pairing Required** for this classroom test. This allows the browser to connect without the micro:bit pairing gesture. Consider the security implications of unauthenticated connections before wider use.
-5. Compile/download the `.hex` file from MakeCode, then flash it onto the micro:bit using USB. For a convenient browser-based flashing option, use the official [micro:bit WebUSB HEX Download Tool](https://microbit.org/tools/webusb-hex-download-tool/). This tool installs an **existing `.hex` file**; it does not compile `main.ts` to HEX. You can reuse a compatible compiled HEX for other devices of the same micro:bit hardware revision.
-6. Reset **once** and let the program run. **Do not press reset three times** to enter special pairing mode. A blank display is expected because `basic.clearScreen()` leaves the LEDs under browser control.
-7. In Chrome or Edge, open the [FreezePods website](https://aaron-ragsdale.github.io/freezepods/), choose **micro:bit Bluetooth (test mode)** and press **Connect micro:bit**. Select your micro:bit in the browser chooser.
-8. Check for **1 micro:bit ready**, press its A/B buttons, and play a reaction game to confirm that the display illuminates.
+4. For this supervised classroom setup, select **No Pairing Required** in the MakeCode Bluetooth settings. This trades Bluetooth authentication for easier connection, so consider the classroom environment before deployment.
+5. Download the compiled `.hex` and flash via USB. You can use the [official micro:bit WebUSB HEX Download Tool](https://microbit.org/tools/webusb-hex-download-tool/). The tool flashes a HEX; it does not compile MakeCode source.
+6. Reset the device **once**, not three times. A blank screen is expected because the website controls the LED display.
+7. Open [FreezePods](https://aaron-ragsdale.github.io/freezepods/) in Chrome or Edge. Choose **Physical micro:bits**, connect the device, and try a Reaction Game.
 
-**Note:** This repository includes the MakeCode source, **not a precompiled HEX binary**. To produce the binary, compile in MakeCode with the Bluetooth extension included and the setting configured. A prebuilt HEX that has not been compiled and tested on target hardware should not be represented as ready-to-flash firmware.
+## What the firmware supports
 
-## Why the earlier heart program may not be ideal
+- Button A/B presses as game inputs
+- Onboard 5×5 monochrome LED patterns as game outputs
+- Optional Bluetooth GPIO HIGH/LOW and simple sensor inputs
+- Optional accelerometer, compass, and temperature data for small game variations
 
-The earlier connectivity test displayed a heart when it started. The website can connect to that program, but for a dedicated LED-controlled game, it is cleaner to leave the built-in screen blank rather than have the firmware draw its own pattern. No `forever` loop should redraw LEDs while the website is trying to update them.
+The sound effects in FreezePods come from the **browser**, not the micro:bit speaker. We deliberately do **not** include custom Bluetooth UART sound commands, NeoPixel strip drivers, or Radio in this basic firmware.
 
-The micro:bit's 5×5 display is **monochrome**. Virtual colored pods are shown on the webpage, but the micro:bit screen displays on/off patterns.
+**Important:** The latest `main.ts` is source code. A previously compiled HEX only has whatever services were enabled when it was built. If you changed the firmware or its services, compile it again. The site can detect missing optional services and report that capability as unavailable.
 
-## Troubleshooting
+## Hardware notes
 
-- **Chrome finds it, but 0 ready:** The micro:bit's currently running program may lack the Bluetooth Button Service. Reflash the correct MakeCode project.
-- **1 ready, buttons work, but LEDs stay dark:** Check the LED service status under the device counter and run a reaction game. Expand **See game events** and copy any LED write errors or readback results.
-- **LED writes complete but lights do not change:** Confirm the micro:bit is running this minimal firmware, not a program that repeatedly displays a heart, scrolls text, or overwrites the LED matrix. Reset once and reconnect.
-- **Micro:bit does not appear:** Ensure it has power and is running the Bluetooth-enabled program, rather than special pairing mode. Close any conflicting BLE connection.
-- **Multiple devices:** Connect one at a time. FreezePods supports 1–4, and only connected devices are chosen as random targets.
+- GPIO output on P0/P1/P2 uses 3.3V logic; never power high-current accessories directly from a micro:bit pin.
+- External digital/analog sensors need suitable connections and power. Keep wiring simple for classroom games.
+- Compass readings may require calibration. Some Bluetooth services and extension combinations may be limited by micro:bit V1 memory.
+- This firmware and the advanced optional pin/sensor web controls still need verification on each board revision. The existing buttons and LED display should be checked first.
 
-## What the site sends
-
-The website uses Bluetooth GATT Button Service notifications to receive Button A/B presses. For LED output it writes five bytes (one byte for each row of the 5×5 display) to the LED Matrix State characteristic. The website serializes writes per device. The old dedicated LED test button was removed.
-
-References: [MakeCode Bluetooth LED Service](https://makecode.microbit.org/reference/bluetooth/start-led-service) and [micro:bit Bluetooth GATT LED service](https://lancaster-university.github.io/microbit-docs/ble/led-service/).
-
-## GPIO output blocks
-
-The website's **Output Pins** category supports HIGH/LOW on P0, P1, or P2. These use the optional standard Bluetooth I/O Pin Service and require an updated MakeCode HEX compiled with `bluetooth.startIOPinService()`. The browser sets the selected pin's configuration to digital output before sending its value. Verify the pin with a suitable resistor and small LED or a meter before attaching other hardware.
-
-The existing candidate `.hex` file may **not** include the I/O Pin Service, even if buttons and built-in LEDs work. Updating this `main.ts` source does not change an already compiled HEX; recompile and flash it.
-
-Addressable LED strips are different: they require the MakeCode NeoPixel extension (or another timing-aware firmware library), a suitable command protocol, external 5V supply, common ground, and generally a 3.3V-to-5V data level shifter. The current HIGH/LOW block **does not** implement WS2812 color data.
-
-## Expanded V2 firmware build (experimental)
-
-The current [main.ts](./main.ts) is an **experimental all-features profile** for the micro:bit V2. It uses the MakeCode **Bluetooth** extension and the **NeoPixel** extension (`microsoft/pxt-neopixel`). It does **not** use the **Radio** extension. The original compiled `microbit-bluettoth.hex` is not the same thing as this source and has not been replaced in GitHub.
-
-The firmware enables Bluetooth Buttons, LED Matrix, I/O Pins, Accelerometer, Magnetometer, Temperature, and UART. The website uses the native GATT characteristics for sensor sampling. It uses UART to send commands to the micro:bit, which locally generates the audio, PWM, and NeoPixel output.
-
-### Reserved pins
-
-- **P1:** NeoPixel data, with the firmware configured for **12 RGB pixels**. Adjust the LED count in `main.ts` before compiling if yours differs.
-- **P0 and P2:** available for digital input/output, analog input, and PWM output using the new Blockly controls.
-- A suitable external **5V supply**, **common ground**, and typically **3.3V-to-5V logic level shifting** are needed for a 5V NeoPixel strip. Never power the strip directly from a GPIO output.
-
-### Validation status
-
-This source has been committed, but **it has not been compiled in MakeCode or tested with a physical micro:bit** in this session. Compile in MakeCode, resolve any extension or hardware-revision issues, and test each service individually before flashing classroom devices. With many enabled services and the NeoPixel extension, **micro:bit V1 might not have adequate memory**. The V2 built-in speaker is used for tone commands; V1 needs an external audio circuit.
-
-A sensible test order is: connect and press A/B, display a pattern, sample accelerometer and temperature, test P0/P2 with a meter, play a short speaker tone, then connect the correctly powered NeoPixel strip. If an optional service is absent, FreezePods should show an error rather than claiming that the command completed.
-
-### UART command reference
-
-The website sends short newline-terminated commands, at most 20 ASCII bytes per BLE write:
-
-- `T,440,150` play a 440 Hz tone for 150 ms
-- `V,128` set audio volume
-- `F,255,0,0` fill the NeoPixel strip red
-- `N,0,0,255,0` set the first NeoPixel green
-- `B,60` set NeoPixel brightness
-- `C` clear NeoPixels
-- `P,0,512` set P0 PWM to about 50%
-- `D,1` show a heart on the onboard display
+For full micro:bit hardware programming beyond interactive pods, use [MakeCode](https://makecode.microbit.org/).
