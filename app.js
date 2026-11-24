@@ -17,6 +17,14 @@ async function digitalWrite(index,pin,high){
  if(!info.pinData)throw Error('Bluetooth GPIO not available. Reflash this micro:bit with bluetooth.startIOPinService().');
  info.pinWrites=(info.pinWrites||Promise.resolve()).catch(()=>{}).then(async()=>{
   if(info!==S.devices[index]||!info.device.gatt.connected)throw Error('Device disconnected.');
+  // Preserve all other pin configurations while setting this pin to digital output.
+  for(const char of [info.pinIo,info.pinAd]){
+   const view=await char.readValue();
+   if(view.byteLength<3)throw Error('Pin configuration is not 3 bytes');
+   const bytes=new Uint8Array([view.getUint8(0),view.getUint8(1),view.getUint8(2)]);
+   bytes[Math.floor(pin/8)]&=~(1<<(pin%8));
+   await char.writeValue(bytes);
+  }
   const value=new Uint8Array([pin,high?1:0]);
   if(info.pinData.properties.write&&info.pinData.writeValueWithResponse)await info.pinData.writeValueWithResponse(value);
   else if(info.pinData.properties.writeWithoutResponse&&info.pinData.writeValueWithoutResponse)await info.pinData.writeValueWithoutResponse(value);
@@ -25,7 +33,7 @@ async function digitalWrite(index,pin,high){
  await info.pinWrites;
  log('Pod '+(index+1)+' P'+pin+' = '+(high?'HIGH':'LOW'));
 }
-const UUID={buttons:'e95d9882-251d-470a-a062-fa1922dfa9a8',a:'e95dda90-251d-470a-a062-fa1922dfa9a8',b:'e95dda91-251d-470a-a062-fa1922dfa9a8',leds:'e95dd91d-251d-470a-a062-fa1922dfa9a8',matrix:'e95d7b77-251d-470a-a062-fa1922dfa9a8',io:'e95d127b-251d-470a-a062-fa1922dfa9a8',pinData:'e95d8d00-251d-470a-a062-fa1922dfa9a8'};
+const UUID={buttons:'e95d9882-251d-470a-a062-fa1922dfa9a8',a:'e95dda90-251d-470a-a062-fa1922dfa9a8',b:'e95dda91-251d-470a-a062-fa1922dfa9a8',leds:'e95dd91d-251d-470a-a062-fa1922dfa9a8',matrix:'e95d7b77-251d-470a-a062-fa1922dfa9a8',io:'e95d127b-251d-470a-a062-fa1922dfa9a8',pinData:'e95d8d00-251d-470a-a062-fa1922dfa9a8',pinIo:'e95db9fe-251d-470a-a062-fa1922dfa9a8',pinAd:'e95d5899-251d-470a-a062-fa1922dfa9a8'};
 const pods=[...document.querySelectorAll('.pod')];let ws;
 
 let audioContext=null;
@@ -191,6 +199,8 @@ $('connect').addEventListener('click',async()=>{
   try{
    const service=await server.getPrimaryService(UUID.io);
    info.pinData=await service.getCharacteristic(UUID.pinData);
+   info.pinIo=await service.getCharacteristic(UUID.pinIo);
+   info.pinAd=await service.getCharacteristic(UUID.pinAd);
    log('Pod '+(index+1)+': GPIO P0, P1 and P2 available.');
   }catch(err){info.pinData=null;log('GPIO not enabled in firmware: '+err.message);}
  }catch(err){
