@@ -13,12 +13,12 @@
 <body>
   <header class="topbar">
     <div class="brand"><span class="logo">✳</span><div><strong>FreezePods</strong><small>Make a game. Make it move.</small></div></div>
-    <span class="tag">Blockly game lab · v2</span>
+    <span class="tag">Blockly + JavaScript · hardware test</span>
   </header>
   <main>
     <section class="intro">
       <div><p class="eyebrow">BUILD · TEST · REMIX</p><h1>Make your own reaction game.</h1><p>Build reaction games and memory challenges with variables, lists, logic, loops, and colored lights. Test with four virtual pods, or connect 1–4 BBC micro:bits with Bluetooth.</p></div>
-      <div class="mode"><label for="mode">Play mode</label><select id="mode"><option value="simulation">Simulation</option><option value="hardware">micro:bit Bluetooth (test mode)</option></select><button id="connect" class="secondary" type="button">+ Connect micro:bit</button><span id="devices">0 micro:bits ready</span><small id="device-diagnostics" class="device-diagnostics">Connect 1–4 BBC micro:bits. Buttons can be tested before starting a game.</small></div>
+      <div class="mode"><label for="mode">Play mode</label><select id="mode"><option value="simulation">Simulation</option><option value="hardware">micro:bit Bluetooth (test mode)</option></select><button id="connect" class="secondary" type="button">+ Connect micro:bit</button><span id="devices">0 micro:bits ready</span><small id="device-diagnostics" class="device-diagnostics">Connect 1–4 BBC micro:bits. Buttons can be tested before starting a game.</small><div class="led-test-controls"><label for="test-pod">LED test</label><select id="test-pod"><option value="-1">All connected</option></select><button type="button" id="test-leds" class="secondary" disabled>Test LEDs (2 sec)</button></div><a class="device-setup-link" href="./firmware/README.md">Set up a micro:bit</a></div>
     </section>
     <section class="workspace-panel">
       <div class="section-head"><div><h2>My game</h2><p id="workspace-description">Choose Reaction game or Memory game, then remix with variables, lists, math, conditions, loops, and colored pods.</p></div>
