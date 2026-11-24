@@ -17,8 +17,8 @@
   </header>
   <main>
     <section class="intro">
-      <div><p class="eyebrow">BUILD · TEST · REMIX</p><h1>Make your own reaction game.</h1><p>Build reaction games and memory challenges with variables, lists, logic, loops, and colored lights. Test with four virtual pods, or try experimental micro:bit Bluetooth.</p></div>
-      <div class="mode"><label for="mode">Play mode</label><select id="mode"><option value="simulation">Simulation</option><option value="hardware">micro:bit Bluetooth (experimental)</option></select><button id="connect" class="secondary" type="button">+ Connect micro:bit</button><span id="devices">0 micro:bits connected</span></div>
+      <div><p class="eyebrow">BUILD · TEST · REMIX</p><h1>Make your own reaction game.</h1><p>Build reaction games and memory challenges with variables, lists, logic, loops, and colored lights. Test with four virtual pods, or connect 1–4 BBC micro:bits with Bluetooth.</p></div>
+      <div class="mode"><label for="mode">Play mode</label><select id="mode"><option value="simulation">Simulation</option><option value="hardware">micro:bit Bluetooth (test mode)</option></select><button id="connect" class="secondary" type="button">+ Connect micro:bit</button><span id="devices">0 micro:bits ready</span><small id="device-diagnostics" class="device-diagnostics">Connect 1–4 BBC micro:bits. Buttons can be tested before starting a game.</small></div>
     </section>
     <section class="workspace-panel">
       <div class="section-head"><div><h2>My game</h2><p id="workspace-description">Choose Reaction game or Memory game, then remix with variables, lists, math, conditions, loops, and colored pods.</p></div>
@@ -55,7 +55,7 @@
         <button type="button" class="pod" data-pod="2"><span class="led" aria-hidden="true"></span><strong>Pod 3</strong><small>Click to press</small></button>
         <button type="button" class="pod" data-pod="3"><span class="led" aria-hidden="true"></span><strong>Pod 4</strong><small>Click to press</small></button>
       </div>
-      <p class="hint">Simulation: click pods or press keys 1–4. Colored lights work in simulation. Standard BBC micro:bit LED matrices are monochrome, so hardware uses on/off patterns. Experimental Bluetooth needs four connected micro:bits with compatible Button and LED BLE services.</p>
+      <p class="hint">Simulation: click pods or press keys 1–4. Colored lights work in simulation. Standard BBC micro:bit LED matrices are monochrome, so hardware uses on/off patterns. Hardware test mode supports 1–4 connected micro:bits; random targets use only connected pods. A connected device needs Bluetooth Button services; LED output needs the LED service enabled in its firmware.</p>
       <details><summary>See game events</summary><ol id="log" aria-live="polite"></ol></details>
     </section>
   </main>
