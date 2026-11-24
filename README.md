@@ -106,6 +106,16 @@ If Chrome shows your micro:bit but FreezePods still reports **0 ready**, Chrome 
 
 If it still fails, copy the **Setup stopped** diagnostic and the **See game events** log. The exact error tells us whether discovery, GATT or firmware services are the blocker.
 
+## Downloading and testing FreezePods firmware
+
+A compiled firmware file named `microbit-bluettoth.hex` is currently being tested. **It has not been added to this repository or confirmed as the release firmware yet.** The source code lives at [firmware/main.ts](firmware/main.ts).
+
+If you already have a compiled `.hex` file, you can install it onto a micro:bit using the official [micro:bit WebUSB HEX Download Tool](https://microbit.org/tools/webusb-hex-download-tool/). Connect your micro:bit by USB, select the HEX file, and follow the tool's instructions. This tool **flashes** compiled firmware; it does not compile the TypeScript source.
+
+After flashing, reset the board once, connect it from the [FreezePods website](https://aaron-ragsdale.github.io/freezepods/) using **micro:bit Bluetooth (test mode)**, and check both the button press diagnostics and **Test LEDs (2 sec)**. Once the candidate firmware passes these checks, it can be added to the `firmware/` folder with a direct download link.
+
+See the [full firmware setup instructions](firmware/README.md).
+
 ## LED troubleshooting and one-time firmware
 
 Physical micro:bit LEDs use the built-in monochrome 5×5 display, not the simulation's RGB colors.
