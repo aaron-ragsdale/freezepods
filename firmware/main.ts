@@ -32,6 +32,7 @@ basic.clearScreen()
 // N,<i>,<r>,<g>,<b> set 0-based pixel index
 // B,<0..255>        NeoPixel brightness
 // C                 clear NeoPixels
+// P,<0|2>,<0..1023> set PWM duty (P0/P2)
 // D,<0..4>          display predefined symbol (0 clear, 1 heart, 2 yes, 3 no, 4 diamond)
 // Multiple messages should be sent as separate BLE writes (20 bytes max each).
 bluetooth.onUartDataReceived("\n", function () {
@@ -64,6 +65,14 @@ bluetooth.onUartDataReceived("\n", function () {
     } else if (cmd == "C") {
         pixelStrip.clear()
         pixelStrip.show()
+    } else if (cmd == "P" && items.length >= 3) {
+        let pin = parseInt(items[1])
+        let duty = Math.constrain(parseInt(items[2]), 0, 1023)
+        if (pin == 0) {
+            pins.analogWritePin(AnalogPin.P0, duty)
+        } else if (pin == 2) {
+            pins.analogWritePin(AnalogPin.P2, duty)
+        }
     } else if (cmd == "D" && items.length >= 2) {
         let symbol = parseInt(items[1])
         if (symbol == 0) {
