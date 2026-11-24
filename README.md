@@ -117,7 +117,7 @@ Physical micro:bit LEDs use the built-in monochrome 5×5 display, not the simula
 
 The website serializes writes per device to avoid overlapping Bluetooth LED commands.
 
-The repository includes a reusable MakeCode program at **[firmware/main.ts](firmware/main.ts)** and detailed [one-time flashing instructions](firmware/README.md). That program starts the Bluetooth Button and LED services, then leaves the display clear rather than showing a permanent heart. We have included the firmware **source**, not a compiled HEX; compile and flash it through MakeCode. Once flashed, the same firmware is used by all student games.
+The repository includes a reusable MakeCode program at **[firmware/main.ts](firmware/main.ts)** and detailed [one-time flashing instructions](firmware/README.md). Once you have compiled a `.hex` file in MakeCode, you can flash it to additional micro:bits with the official [micro:bit WebUSB HEX Download Tool](https://microbit.org/tools/webusb-hex-download-tool/). The WebUSB tool flashes an existing HEX file; it does not compile the source. That program starts the Bluetooth Button and LED services, then leaves the display clear rather than showing a permanent heart. We have included the firmware **source**, not a compiled HEX; compile and flash it through MakeCode. Once flashed, the same firmware is used by all student games.
 
 If a browser reports that Bluetooth LED writes succeeded but the lights do not change, first flash the minimal firmware, reset once, reconnect, and try the LED test. Browser command success alone does not establish that physical LEDs illuminated.
 
