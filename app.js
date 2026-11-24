@@ -241,7 +241,7 @@ Blockly.defineBlocksWithJsonArray([
 
  {type:'speed_game',message0:'Speed Challenge: %1 seconds, + %2 for hit, %3 for miss',args0:[{type:'field_number',name:'SECONDS',value:20,min:5,max:90,precision:1},{type:'field_number',name:'RIGHT',value:10,min:0,max:100},{type:'field_number',name:'WRONG',value:-5,min:-100,max:0}],previousStatement:null,nextStatement:null,colour:35,tooltip:'Keep hitting randomly lit pods until the timer ends.'},
  {type:'simon_game',message0:'Simon Says: %1 levels, start with %2 flashes',args0:[{type:'field_number',name:'LEVELS',value:5,min:1,max:12,precision:1},{type:'field_number',name:'START',value:1,min:1,max:6,precision:1}],previousStatement:null,nextStatement:null,colour:55,tooltip:'Remember an increasing sequence. One more pod is added after each level.'},
- {type:'duel_game',message0:'Two-player duel: %1 rounds, + %2 to fastest player',args0:[{type:'field_number',name:'ROUNDS',value:10,min:1,max:30,precision:1},{type:'field_number',name:'POINTS',value:10,min:1,max:100,precision:1}],previousStatement:null,nextStatement:null,colour:35,tooltip:'Player 1 uses Pod 1, Player 2 uses Pod 2. One pod is the winner each round.'},
+ {type:'duel_game',message0:'Two-player duel: %1 rounds, + %2 to fastest player',args0:[{type:'field_number',name:'ROUNDS',value:10,min:1,max:30,precision:1},{type:'field_number',name:'POINTS',value:10,min:1,max:100,precision:1}],previousStatement:null,nextStatement:null,colour:35,tooltip:'Both players see green; the first to press earns the points.'},
  {type:'strip_fill',message0:'RGB strip: fill pod %1 with %2',args0:[{type:'input_value',name:'POD',check:'Number'},{type:'field_dropdown',name:'COLOR',options:[['red','red'],['green','green'],['blue','blue'],['yellow','yellow'],['purple','purple'],['orange','orange'],['white','white'],['off','off']]}],previousStatement:null,nextStatement:null,colour:165,tooltip:'Shows 12 addressable RGB pixels in simulation; requires future external hardware adapter for real strips.'},
  {type:'strip_pixel',message0:'RGB strip: pod %1 pixel %2 color %3',args0:[{type:'input_value',name:'POD',check:'Number'},{type:'input_value',name:'PIXEL',check:'Number'},{type:'field_dropdown',name:'COLOR',options:[['red','red'],['green','green'],['blue','blue'],['yellow','yellow'],['purple','purple'],['orange','orange'],['white','white'],['off','off']]}],previousStatement:null,nextStatement:null,colour:165},
  {type:'strip_rainbow',message0:'RGB strip: rainbow on pod %1',args0:[{type:'input_value',name:'POD',check:'Number'}],previousStatement:null,nextStatement:null,colour:165},
@@ -441,13 +441,15 @@ async function perform(first,token,budget){
      status('Duel '+round+': get ready!');
      await sleepCancelable(500+Math.random()*800,token);
      if(!on(token))break;
-     const winner=Math.floor(Math.random()*2),i=players[winner];
-     S.target=i;paint(i,'green');sound('beep');
+     for(const i of players)paint(i,'green');
+     S.target=-1;sound('beep');
+     status('Go! First to press wins this round.');
      const press=await receive(2200,token);if(!on(token))break;
-     S.last=press?{...press,correct:press.index===i}:{index:-1,correct:false,ms:null};
-     if(S.last.correct){duelTotals[winner]+=points;S.score+=points;S.hits++;sound('success');status('Player '+(winner+1)+' scored!');}
-     else{sound('miss');status('No points this round');}
-     stats();duelScores();log('Duel round '+round+' target Player '+(winner+1));
+     const winner=press?players.indexOf(press.index):-1;
+     S.last=press?{...press,correct:winner!==-1}:{index:-1,correct:false,ms:null};
+     if(winner!==-1){duelTotals[winner]+=points;S.score+=points;S.hits++;sound('success');status('Player '+(winner+1)+' wins! '+Math.round(press.ms)+' ms');}
+     else{sound('miss');status('No one scored this round');}
+     stats();duelScores();log('Duel round '+round+': '+(winner!==-1?'Player '+(winner+1)+' won':'no winner'));
      clear();await sleepCancelable(420,token);
     }
     if(on(token)){status('Duel finished! Player 1: '+duelTotals[0]+' · Player 2: '+duelTotals[1]);sound('level');}
