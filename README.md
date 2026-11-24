@@ -84,6 +84,8 @@ Use **Pods & Colors → set pod [number] color to [color]**. Insert a Math numbe
 | `app.js` | Custom Blockly blocks, interpreter, simulation, Bluetooth and restricted parent bridge |
 | `editor.js` | JavaScript editor, starter programs and sandboxed game runner |
 | `README.md` | This guide |
+| `firmware/main.ts` | Minimal MakeCode source for Bluetooth input and LED matrix output |
+| `firmware/README.md` | Setup and troubleshooting guide for physical micro:bits |
 
 ## One-micro:bit setup and troubleshooting
 
@@ -103,6 +105,21 @@ If Chrome shows your micro:bit but FreezePods still reports **0 ready**, Chrome 
 5. The diagnostics below the connection counter now show the stage: device selected, GATT connected, Button Service, and LED matrix. With one board ready, press A/B to confirm input and launch a Reaction game. Random targets use that board only.
 
 If it still fails, copy the **Setup stopped** diagnostic and the **See game events** log. The exact error tells us whether discovery, GATT or firmware services are the blocker.
+
+## LED troubleshooting and one-time firmware
+
+Physical micro:bit LEDs use the built-in monochrome 5×5 display, not the simulation's RGB colors.
+
+1. Connect at least one micro:bit in Bluetooth test mode.
+2. Click **Test LEDs (2 sec)** in the connection panel.
+3. FreezePods will write an OFF pattern, then an ON pattern, then OFF again to each selected connected device. Check whether its physical LEDs light up.
+4. Open **See game events** to inspect LED write errors and optional characteristic readback.
+
+The website serializes writes per device to avoid overlapping Bluetooth LED commands.
+
+The repository includes a reusable MakeCode program at **[firmware/main.ts](firmware/main.ts)** and detailed [one-time flashing instructions](firmware/README.md). That program starts the Bluetooth Button and LED services, then leaves the display clear rather than showing a permanent heart. We have included the firmware **source**, not a compiled HEX; compile and flash it through MakeCode. Once flashed, the same firmware is used by all student games.
+
+If a browser reports that Bluetooth LED writes succeeded but the lights do not change, first flash the minimal firmware, reset once, reconnect, and try the LED test. Browser command success alone does not establish that physical LEDs illuminated.
 
 ## Bluetooth hardware (experimental, not validated)
 
